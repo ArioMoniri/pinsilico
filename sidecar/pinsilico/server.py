@@ -19,6 +19,9 @@ from pydantic import BaseModel, Field
 from pinsilico import __version__
 from pinsilico.auth import make_token_verifier, resolve_token
 from pinsilico.errors import install_handlers
+from pinsilico.routes import db as db_routes
+from pinsilico.routes import pocket as pocket_routes
+from pinsilico.routes import sim as sim_routes
 
 
 class HealthResponse(BaseModel):
@@ -73,6 +76,11 @@ def create_app(*, token: str | None = None) -> FastAPI:
 
     # Store the token on app state so tests / Phase 6 wiring can introspect.
     app.state.token = active_token
+
+    # Mount Phase 5 routers, all gated by the per-launch token verifier.
+    app.include_router(db_routes.router, dependencies=[Depends(verifier)])
+    app.include_router(pocket_routes.router, dependencies=[Depends(verifier)])
+    app.include_router(sim_routes.router, dependencies=[Depends(verifier)])
 
     @app.get(
         "/health",
