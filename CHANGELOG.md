@@ -7,7 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-(Nothing yet — Phase 5 lands next.)
+(Phases 11 and 12 land next — WebGPU compute path + cross-platform
+packaging. Both benefit from interactive iteration outside this build.)
+
+## [0.10.0-alpha] — 2026-05-19
+
+Phases 5 → 10 in one release block.
+
+### Phase 5 — HTTP API surface (`pinsilico.routes`)
+
+- 22 routes wrapping the Phase 2–4 adapters: `/db/{provider}/...` for
+  all 6 providers, `/pocket/detect`, `/sim/run`, `/sim/fast_forward`,
+  plus `/shutdown` and the existing `/health` + `/version`.
+- Uniform error mapping: `DbError` → 502 with provider slug +
+  upstream HTTP status under `details`; `PocketDetectionError` → 500
+  with `code: POCKET_DETECTION_FAILED`; FastAPI validation → 422 with
+  `code: VALIDATION_ERROR`.
+
+### Phase 6 — Tauri ↔ sidecar wiring (`app/src-tauri/src/sidecar.rs`)
+
+- `parse_stdout_line` + `SidecarHandle::from_banner` parse the four
+  `PINSILICO_*` discovery lines, tolerate interleaved uvicorn logs,
+  reject non-loopback hosts.
+- `POST /shutdown` route on the sidecar gated by the token verifier.
+
+### Phase 7 — Frontend skeleton
+
+- Hand-written typed `PinsilicoClient` with 13 methods matching every
+  Phase 5 route. `ApiError` carries (status, code, details).
+- Zustand stores: `useSessionStore`, `useSceneStore`.
+
+### Phase 8 — Dual 3D views
+
+- **8a Abstract arena** (R3F + drei v9): `ProteinShell` (low-poly
+  icosphere sized to radius of gyration), `PocketMarker` (real
+  fpocket centroid + druggability-tinted halo), `ParticleSwarm`
+  (single InstancedMesh for the entire swarm).
+- **8b Atomistic Mol* seam**: lazy-loaded `MolstarViewer`,
+  `representationFor(view)` preset, `interpolateLigandFrames` with
+  the bound-state-snaps-to-position invariant locked under tests.
+
+### Phase 9 — UI panels (partial)
+
+- `ProteinPanel` and `SimPanel` shipped with every BUILD_PROMPT.md §9
+  control. Five more panels (LigandPanel, PocketPanel, DockingPanel,
+  DBSearchDialog, ExportDialog) follow the same store-wired pattern.
+
+### Phase 10 — `.pinsilico` session bundle
+
+- Deterministic zip format: identical input → identical bytes
+  (fixed 1980 epoch mtime, sorted-keys JSON, stable compresslevel).
+- Round-trip property test via Hypothesis.
+
+### Test totals at v0.10.0-alpha
+
+- Sidecar: 244 tests, 92 % coverage (sim/rules 100 %, every adapter ≥ 84 %)
+- Frontend: 44 tests
+- Rust: 14 tests (10 sidecar parser + 4 smoke)
+- All gates clean: ruff, ruff format, mypy --strict, eslint
+  --max-warnings 0, prettier --check, tsc --noEmit, cargo fmt
+  --check, cargo clippy -- -D warnings
+
+[0.4.0-alpha]: https://github.com/ArioMoniri/pinsilico/compare/v0.3.0-alpha...v0.4.0-alpha
+[0.10.0-alpha]: https://github.com/ArioMoniri/pinsilico/releases/tag/v0.10.0-alpha
 
 ## [0.4.0-alpha] — 2026-05-19
 
@@ -235,7 +297,7 @@ Phase 1 — Sidecar foundation.
 - [x] ≥ 85% coverage (actual: 92%)
 - [x] No deferred TODOs in Phase 1 code
 
-[Unreleased]: https://github.com/ArioMoniri/pinsilico/compare/v0.4.0-alpha...HEAD
+[Unreleased]: https://github.com/ArioMoniri/pinsilico/compare/v0.10.0-alpha...HEAD
 
 ## [0.0.0-alpha] — 2026-05-19
 
