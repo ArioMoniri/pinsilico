@@ -83,6 +83,7 @@ select = [
   "C4",        # comprehensions
   "PIE",       # idioms
   "PT",        # pytest
+  "BLE",       # bare except / overly-broad except (with allow-noqa)
   "RET",       # return rules
   "SIM",       # simplify
   "TID",       # tidy imports
@@ -127,6 +128,26 @@ files = ["pinsilico", "tests"]
 [[tool.mypy.overrides]]
 module = ["tests.*"]
 disallow_untyped_decorators = false  # pytest fixtures
+
+[[tool.mypy.overrides]]
+# Biopython has no type stubs and won't until upstream ships .pyi files.
+# Tolerate untyped calls in modules that wrap it; the public adapter in
+# pinsilico.io.pdb is fully typed at the boundary.
+module = ["Bio.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+# rdkit's bundled stubs are partial. Same treatment as Biopython.
+module = ["rdkit", "rdkit.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+# Modules that import the above need to relax disallow_untyped_calls,
+# otherwise every wrapper call counts as a type error.
+module = ["pinsilico.io.pdb", "pinsilico.io.sdf"]
+disallow_untyped_calls = false
 
 # -----------------------------------------------------------------------------
 # Pytest — coverage gates per BUILD_PROMPT.md §5. Phase 0 starts at the global

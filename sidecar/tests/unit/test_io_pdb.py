@@ -24,7 +24,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from pinsilico.io.pdb import PdbParseError, count_heavy_atoms, parse_pdb, write_pdb
 
@@ -117,7 +117,11 @@ class TestRoundTrip:
 
 # Property tests cover small random coordinate perturbations to catch
 # round-off drift in the writer's column-width formatting.
-@settings(max_examples=20, deadline=2000)
+@settings(
+    max_examples=20,
+    deadline=2000,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+)
 @given(
     coords=st.lists(
         st.tuples(
@@ -139,8 +143,7 @@ def test_round_trip_property_random_coords(
         # 23-26 seqnum, 31-38 x, 39-46 y, 47-54 z, 55-60 occ, 61-66 temp,
         # 77-78 element. Keep names valid by sticking to "CA" and "ALA".
         atom_lines.append(
-            f"ATOM  {i:5d}  CA  ALA A{i:4d}    {x:8.3f}{y:8.3f}{z:8.3f}"
-            "  1.00  0.00           C"
+            f"ATOM  {i:5d}  CA  ALA A{i:4d}    {x:8.3f}{y:8.3f}{z:8.3f}  1.00  0.00           C"
         )
     pdb = "HEADER    PROP                                    01-JAN-26   XXXX\n"
     pdb += "\n".join(atom_lines) + "\nEND\n"

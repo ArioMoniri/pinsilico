@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from pinsilico.io.sdf import (
     SdfParseError,
@@ -64,7 +64,7 @@ class TestCanonicalSmiles:
     @pytest.mark.parametrize(("name", "smiles"), _SAMPLE_SMILES)
     def test_round_trips(self, name: str, smiles: str) -> None:
         canon = canonical_smiles(smiles)
-        # Idempotency: canonical(canonical(x)) == canonical(x)
+        # Apply twice; the canonicaliser must be a fixed-point.
         assert canonical_smiles(canon) == canon
 
     def test_different_inputs_same_canon(self) -> None:
@@ -89,9 +89,7 @@ class TestCountHeavyAtoms:
 
 class TestSdfRoundTrip:
     @pytest.mark.parametrize(("name", "smiles"), _SAMPLE_SMILES)
-    def test_round_trips_via_sdf_file(
-        self, name: str, smiles: str, tmp_path: Path
-    ) -> None:
+    def test_round_trips_via_sdf_file(self, name: str, smiles: str, tmp_path: Path) -> None:
         out = tmp_path / f"{name}.sdf"
         mol = mol_from_smiles(smiles)
         write_sdf([mol], out)
@@ -127,7 +125,11 @@ class TestSdfErrors:
 
 # Property test: a small SMILES alphabet round-trips through canonical → mol →
 # canonical without drift.
-@settings(max_examples=15, deadline=2000)
+@settings(
+    max_examples=15,
+    deadline=2000,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+)
 @given(smiles=st.sampled_from([s for _, s in _SAMPLE_SMILES]))
 def test_smiles_canonical_idempotent(smiles: str) -> None:
     once = canonical_smiles(smiles)
