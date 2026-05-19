@@ -61,5 +61,14 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // Three.js / R3F components expose three-specific JSX props (roughness,
+    // metalness, position, etc.) that the React plugin doesn't know about.
+    // Scoped override keeps the rule active for plain HTML.
+    files: ["src/components/scene/**/*.{ts,tsx}"],
+    rules: {
+      "react/no-unknown-property": "off",
+    },
+  },
   prettier,
 );
