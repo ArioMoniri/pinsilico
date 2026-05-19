@@ -45,11 +45,7 @@ def _read_csv(csv_path: Path) -> list[DrugBankRecord]:
         reader = csv.DictReader(fh)
         for raw in reader:
             groups_raw = raw.get("groups") or ""
-            groups = tuple(
-                g.strip()
-                for g in groups_raw.replace(";", ",").split(",")
-                if g.strip()
-            )
+            groups = tuple(g.strip() for g in groups_raw.replace(";", ",").split(",") if g.strip())
             rows.append(
                 DrugBankRecord(
                     drugbank_id=(raw.get("drugbank_id") or "").strip(),
@@ -86,9 +82,7 @@ def find_drug_by_name(name: str, *, csv_path: Path) -> DrugBankRecord:
     )
 
 
-def search_drugs(
-    keyword: str, *, csv_path: Path, limit: int = 25
-) -> list[DrugBankRecord]:
+def search_drugs(keyword: str, *, csv_path: Path, limit: int = 25) -> list[DrugBankRecord]:
     """Return records whose name contains ``keyword`` (case-insensitive).
 
     Empty keyword returns all rows up to ``limit``. Matching is plain
