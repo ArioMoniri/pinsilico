@@ -32,6 +32,10 @@ dependencies = [
   "uvicorn[standard]>=0.29,<0.32",
   "structlog>=24.1,<25",
   "pydantic>=2.7,<3",
+  # Phase 1 — IO parsers
+  "biopython>=1.83,<2",
+  # rdkit-pypi 2024.3.x wheels available for all 3 OSes on py3.11
+  "rdkit>=2024.3,<2025",
 ]
 
 [project.optional-dependencies]
