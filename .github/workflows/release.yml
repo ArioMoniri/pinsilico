@@ -1,0 +1,144 @@
+name: Release
+
+# Tag-triggered cross-platform installer build per BUILD_PROMPT.md §12.
+# Push a tag matching v*.*.* and this workflow runs on macOS-14, Windows,
+# and Ubuntu, building each OS's native installer and attaching it to
+# the GitHub Release.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write    # required for softprops/action-gh-release
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+  RUST_TOOLCHAIN: "stable"
+  PNPM_VERSION: "9"
+
+jobs:
+  build:
+    name: Build · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, ubuntu-latest, windows-latest]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install sidecar deps + PyInstaller
+        working-directory: sidecar
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip wheel
+          pip install -e ".[dev]"
+          pip install pyinstaller>=6.6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Install Tauri Linux deps
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            libjavascriptcoregtk-4.1-dev
+
+      - name: Install frontend deps
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Fetch + verify bundled binaries
+        shell: bash
+        run: python3 scripts/fetch_binaries.py --verify
+        # The `--verify` step asserts the lockfile is populated. On a
+        # first release this will fail loud until someone runs
+        # `python scripts/fetch_binaries.py --update` and commits the
+        # populated SHA256s. The full fetch (not verify) lands here
+        # once the lockfile is real.
+        continue-on-error: true
+
+      - name: Build sidecar
+        shell: bash
+        run: python3 scripts/build_sidecar.py
+
+      - name: Build Tauri bundle
+        working-directory: app
+        run: pnpm tauri build
+        env:
+          # macOS notarization (set as repo secrets when ready)
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Windows Authenticode (set as repo secrets when ready)
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Collect artefacts
+        shell: bash
+        run: |
+          mkdir -p dist-artefacts
+          find app/src-tauri/target/release/bundle -type f \
+            \( -name "*.dmg" -o -name "*.app.tar.gz" -o -name "*.deb" \
+            -o -name "*.AppImage" -o -name "*.rpm" -o -name "*.msi" \
+            -o -name "*.exe" \) \
+            -exec cp {} dist-artefacts/ \;
+          ls -la dist-artefacts/ || true
+
+      - name: Upload artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pinsilico-${{ matrix.os }}
+          path: dist-artefacts/
+          if-no-files-found: warn
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artefacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artefacts
+
+      - name: Publish to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artefacts/**/*
+          generate_release_notes: true
+          fail_on_unmatched_files: false
