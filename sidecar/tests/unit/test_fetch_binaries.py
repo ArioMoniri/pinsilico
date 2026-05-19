@@ -10,6 +10,7 @@ import hashlib
 import importlib.util
 import json
 import sys
+import urllib.error
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -38,6 +39,75 @@ class TestDetectPlatform:
     def test_returns_known_key(self) -> None:
         key = fetch_binaries.detect_platform()
         assert key in {"linux-x86_64", "macos-arm64", "windows-x86_64"}
+
+
+class TestSpecsForUnavailable:
+    def test_skips_unavailable_entries(self) -> None:
+        lock = {
+            "binaries": {
+                "vina": {
+                    "version": "1.2.5",
+                    "platforms": {
+                        "macos-arm64": {
+                            "_unavailable": True,
+                            "_reason": "no upstream binary",
+                        },
+                    },
+                },
+            },
+        }
+        assert fetch_binaries.specs_for("macos-arm64", lock) == []
+
+
+class TestUpdateLockTolerance:
+    def test_failed_download_logs_pending_and_does_not_abort(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        lock = {
+            "binaries": {
+                "good": {
+                    "version": "1.0",
+                    "platforms": {
+                        "linux-x86_64": {
+                            "url": "https://example.invalid/good",
+                            "sha256": "0" * 64,
+                        },
+                    },
+                },
+                "bad": {
+                    "version": "1.0",
+                    "platforms": {
+                        "linux-x86_64": {
+                            "url": "https://example.invalid/404",
+                            "sha256": "0" * 64,
+                        },
+                    },
+                },
+            },
+        }
+        lock_path = tmp_path / "lock.json"
+        lock_path.write_text(json.dumps(lock))
+        monkeypatch.setattr(fetch_binaries, "LOCK_PATH", lock_path)
+        monkeypatch.setattr(fetch_binaries, "DEST_DIR", tmp_path / "binaries")
+
+        good_content = b"good-binary"
+
+        def fake_download(url: str, dest: Path) -> None:
+            if "good" in url:
+                dest.write_bytes(good_content)
+            else:
+                raise urllib.error.URLError("simulated 404")
+
+        monkeypatch.setattr(fetch_binaries, "_download", fake_download)
+        failures = fetch_binaries.update_lock("linux-x86_64")
+        assert failures == 1
+
+        written = json.loads(lock_path.read_text())
+        good_entry = written["binaries"]["good"]["platforms"]["linux-x86_64"]
+        bad_entry = written["binaries"]["bad"]["platforms"]["linux-x86_64"]
+        assert good_entry["sha256"] == hashlib.sha256(good_content).hexdigest()
+        assert "_pending" in bad_entry
+        assert "simulated 404" in bad_entry["_pending"]
 
 
 class TestSpecsFor:

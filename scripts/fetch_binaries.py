@@ -30,6 +30,7 @@ import hashlib
 import json
 import platform
 import sys
+import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -78,11 +79,20 @@ def load_lock() -> dict[str, Any]:
 
 
 def specs_for(platform_key: str, lock: dict[str, Any]) -> list[BinarySpec]:
+    """Return the binaries we should fetch on this platform.
+
+    Entries marked ``_unavailable: true`` are skipped — these are
+    OS/arch combos with no upstream binary. The release notes (and
+    docs/releasing.md) document the source-build workaround per
+    binary.
+    """
     out: list[BinarySpec] = []
     for name, entry in lock["binaries"].items():
         plats = entry.get("platforms", {})
         info = plats.get(platform_key)
         if info is None:
+            continue
+        if info.get("_unavailable"):
             continue
         out.append(
             BinarySpec(
@@ -139,24 +149,63 @@ def fetch(spec: BinarySpec, *, dest_dir: Path) -> Path:
     return target
 
 
-def update_lock(platform_key: str) -> None:
-    """Compute fresh SHA256s for every URL and rewrite the lock file."""
+def update_lock(platform_key: str) -> int:
+    """Compute fresh SHA256s for every URL and rewrite the lock file.
+
+    Returns the number of entries that failed to update (HTTP errors,
+    network failures). A non-zero return doesn't abort the run — every
+    other entry is still updated and the lock file is rewritten with
+    the successful hashes. Failed entries keep their previous SHA256
+    (or the all-zero sentinel if it was never populated) and a
+    ``_pending`` line explaining what to do.
+
+    This is the right behaviour when an upstream release has dropped
+    a particular OS/arch combination — e.g. Vina v1.2.5 has no
+    native macOS arm64 binary. We populate the platforms we can and
+    let the operator deal with the rest case by case.
+    """
+    DEST_DIR.mkdir(parents=True, exist_ok=True)
     lock = load_lock()
+    failures = 0
     for name, entry in lock["binaries"].items():
         plats = entry.get("platforms", {})
         info = plats.get(platform_key)
         if info is None:
+            continue
+        if info.get("_unavailable"):
+            sys.stderr.write(
+                f"skipping {name} on {platform_key}: marked unavailable "
+                f"({info.get('_reason', 'no reason given')})\n",
+            )
             continue
         url = info["url"]
         sys.stderr.write(f"updating {name} on {platform_key} from {url}\n")
         tmp = DEST_DIR / f".update.{name}"
         try:
             _download(url, tmp)
+        except (urllib.error.URLError, OSError) as exc:
+            failures += 1
+            sys.stderr.write(f"  FAIL  {name}: {exc}\n")
+            info["_pending"] = (
+                f"upstream fetch failed ({type(exc).__name__}: {exc}). "
+                "If this OS/arch combo isn't available upstream, mark "
+                "it `_unavailable: true` here and bundle a source-build "
+                "fallback (see docs/releasing.md)."
+            )
+            tmp.unlink(missing_ok=True)
+            continue
+        try:
             info["sha256"] = _sha256_of_file(tmp)
             info.pop("_pending", None)
         finally:
             tmp.unlink(missing_ok=True)
     LOCK_PATH.write_text(json.dumps(lock, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if failures:
+        sys.stderr.write(
+            f"{failures} entr{'y' if failures == 1 else 'ies'} failed; "
+            "lock file updated with the successful ones.\n",
+        )
+    return failures
 
 
 def verify_only(platform_key: str) -> int:
@@ -197,8 +246,8 @@ def main(argv: list[str] | None = None) -> int:
 
     platform_key = args.platform or detect_platform()
     if args.update:
-        update_lock(platform_key)
-        return 0
+        failures = update_lock(platform_key)
+        return 1 if failures else 0
     if args.verify:
         return verify_only(platform_key)
 
