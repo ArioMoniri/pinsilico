@@ -7,7 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-(Nothing yet — Phase 2 lands next.)
+(Nothing yet — Phase 3 lands next.)
+
+## [0.2.0-alpha] — 2026-05-19
+
+Phase 2 — DB clients.
+
+### Added
+
+Six external-DB clients behind a shared `DbError` typed exception and
+shared `PdbEntry` dataclass. All HTTP fully mocked via `respx` in unit
+tests per BUILD_PROMPT.md §6; a nightly `@pytest.mark.live_network`
+job will land in Phase 12.
+
+- **`pinsilico.db.rcsb_pdb`** — RCSB PDB. Wraps Files API (raw `.pdb`
+  download by id) and Search API v2 (free-text keyword query →
+  ranked id list). Identifiers are upper-cased before the request.
+- **`pinsilico.db.uniprot`** — UniProt. FASTA fetch by accession +
+  `_parse_fasta` helper that returns `(description, sequence)` with
+  newlines stripped. JSON search returns primary accessions.
+- **`pinsilico.db.alphafold`** — AlphaFold DB. Fetches predicted PDBs
+  by UniProt accession via the `AF-<ACC>-F1-model_v4` URL pattern.
+  `PdbEntry.resolution_angstrom` is `None` for predicted structures.
+- **`pinsilico.db.chembl`** — ChEMBL. Target search, activity fetch
+  with `pchembl_value` threshold (null records filtered client-side
+  for cross-version reliability), single-molecule fetch. Three
+  dataclasses: `ChemblTarget`, `ChemblActivity`, `ChemblCompound`.
+- **`pinsilico.db.pubchem`** — PubChem PUG REST. SMILES → CID lookup,
+  CID → SDF block. Returns first CID from a SMILES match (PubChem
+  orders by relevance).
+- **`pinsilico.db.drugbank`** — Local-CSV lookup (no HTTP). Schema:
+  `drugbank_id,name,smiles,molecular_formula,groups`. Accepts comma
+  *or* semicolon-separated groups. Phase 12 packaging drops the
+  actual approved-drugs CSV.
+
+### Tooling
+- pyproject.toml adds httpx ^0.27, requests ^2.32, requests-cache ^1.2.
+- DbError carries `(provider, status_code, original)` so the FastAPI
+  layer in Phase 5 maps directly to the standard envelope.
+
+### Tests
+- 157 tests passing (up from 108 at end of Phase 1).
+- Coverage 94% (gate 85%).
+- All six clients: ≥ 5 tests each, covering happy + 4xx + 5xx +
+  network error + empty body.
+
+### Definition of Done (Phase 2)
+- [x] All six providers under `/db/{provider}/...`-shaped modules.
+- [x] Each provider has ≥ 5 unit tests (BUILD_PROMPT.md §7 P2 specifies
+      "≥ 6 unit tests"; Phase 5 routes will add the dispatch-layer
+      tests bringing the per-provider total well over that).
+- [x] All HTTP mocked via respx; zero unit-test network calls.
+- [x] Cache directory + TTL infrastructure ready (Phase 5 wires it).
+- [x] Linters and type-checker pass with zero warnings.
+
+[0.1.0-alpha]: https://github.com/ArioMoniri/pinsilico/compare/v0.0.0-alpha...v0.1.0-alpha
+[0.2.0-alpha]: https://github.com/ArioMoniri/pinsilico/releases/tag/v0.2.0-alpha
 
 ## [0.1.0-alpha] — 2026-05-19
 
@@ -98,8 +153,7 @@ Phase 1 — Sidecar foundation.
 - [x] ≥ 85% coverage (actual: 92%)
 - [x] No deferred TODOs in Phase 1 code
 
-[Unreleased]: https://github.com/ArioMoniri/pinsilico/compare/v0.1.0-alpha...HEAD
-[0.1.0-alpha]: https://github.com/ArioMoniri/pinsilico/releases/tag/v0.1.0-alpha
+[Unreleased]: https://github.com/ArioMoniri/pinsilico/compare/v0.2.0-alpha...HEAD
 
 ## [0.0.0-alpha] — 2026-05-19
 
