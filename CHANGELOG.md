@@ -7,7 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-(Nothing yet — Phase 1 lands next.)
+(Nothing yet — Phase 2 lands next.)
+
+## [0.1.0-alpha] — 2026-05-19
+
+Phase 1 — Sidecar foundation.
+
+### Added
+
+#### Auth (`pinsilico.auth`)
+- Per-launch token via `secrets.token_urlsafe(32)` (~43 url-safe chars,
+  distinct on every call). The Tauri shell (Phase 6) reads it from the
+  sidecar's stdout (`PINSILICO_TOKEN=…`) and sends it as
+  `X-Pinsilico-Token` on every request.
+- `resolve_token(explicit?)` with priority kwarg > env > generated.
+- `verify_token()` uses `secrets.compare_digest` so a local-process timing
+  side-channel can't recover the token byte-by-byte.
+- `make_token_verifier(token)` FastAPI dependency closure. Closure
+  rather than class instance so FastAPI's DI signature inspection
+  doesn't trip over `self`.
+- `/health` is the deliberate exception — Phase 6 needs to probe before
+  it has finished reading the token line from stdout.
+- New token-gated `/version` route the Tauri shell uses to confirm it
+  has the right token before mounting the webview.
+
+#### Standard error envelope (`pinsilico.errors`)
+- `{error: {code, message, details}}` shape locked across releases.
+- `install_handlers(app)` wires three handlers: `HTTPException` (string
+  or envelope-dict detail), `RequestValidationError` (422 VALIDATION_ERROR
+  with pydantic errors[]), uncaught `Exception` (500 INTERNAL_ERROR with
+  no message leak).
+- `envelope()` helper used by both FastAPI handlers and any non-HTTPException
+  emitter (e.g. Phase 4 SSE error frames).
+
+#### Structured logging (`pinsilico.logs`)
+- structlog with two sinks: stdout (greppable JSON) and rotating file
+  under `<log_dir>/sidecar.log` (default 10 MB × 5 backups = ~60 MB cap).
+- Processor chain: contextvars merge, level filter, ISO-8601 timestamp,
+  add_log_level, stack-info renderer, exception formatter, dict
+  tracebacks, JSON renderer.
+- `get_logger(name?, **initial_context)` returns a structlog logger
+  optionally pre-bound. Module named `pinsilico.logs` (not `.logging`)
+  to avoid shadowing the stdlib `logging` module.
+
+#### IO parsers
+- `pinsilico.io.pdb` — Biopython-backed PDB parser/writer. Accepts
+  Path, str path, or literal PDB block. `PdbParseError` typed exception.
+  Round-trip tests preserve xyz to 3 dp; Hypothesis property test on
+  random coords catches column-width formatting drift.
+- `pinsilico.io.sdf` — RDKit-backed SDF/SMILES parser/writer.
+  Canonical SMILES idempotent. `SdfParseError` typed exception.
+  Single-mol and multi-mol SDF round-trips. Property test confirms
+  canonical SMILES fixed-point.
+
+#### Tooling
+- pyproject.toml adds rdkit ^2024.3 and biopython ^1.83 runtime deps.
+- mypy overrides for Bio.*, rdkit.* (both lack complete stubs);
+  pinsilico.io.* relaxes `disallow_untyped_calls` for the wrapper layer.
+- Ruff's `BLE` rule set enabled (overly-broad except) with a documented
+  `# noqa: BLE001` in pdb.py where we catch Biopython's bare Exception.
+
+### Changed
+- `__main__.py` now also resolves and prints `PINSILICO_TOKEN=<token>`
+  as the 4th stdout line (after HOST, PORT, VERSION).
+- `create_app(token=None)` factory accepts an explicit token override.
+
+### CI fixes folded into this release
+- `pnpm-lock.yaml` committed (was missing, blocking setup-node cache).
+- `app/src-tauri/icons/icon.ico` generated (tauri-build requires it on
+  Windows).
+- typescript-eslint bumped to v8 + ESLint config moved under `app/`
+  for proper `globals` resolution.
+- `@types/node` pinned (vite.config.ts uses Node globals).
+- `.gitignore`'s unanchored `lib/` was matching `app/src/lib/`;
+  anchored to `/sidecar/lib/`.
+
+### Tests
+- 108 tests passing (up from 30 at Phase 0):
+  - test_health.py (6), test_config.py (24), test_auth.py (19),
+    test_errors.py (12), test_logs.py (12), test_io_pdb.py (8),
+    test_io_sdf.py (27)
+- Sidecar coverage: 92% (gate is 85%).
+
+### Definition of Done (Phase 1)
+- [x] Auth gating every route except `/health`
+- [x] Structured logging with file rotation
+- [x] Standard error envelope on every non-2xx
+- [x] PDB + SDF parsers with round-trip property tests
+- [x] All linters and formatters pass with zero warnings
+- [x] ≥ 85% coverage (actual: 92%)
+- [x] No deferred TODOs in Phase 1 code
+
+[Unreleased]: https://github.com/ArioMoniri/pinsilico/compare/v0.1.0-alpha...HEAD
+[0.1.0-alpha]: https://github.com/ArioMoniri/pinsilico/releases/tag/v0.1.0-alpha
 
 ## [0.0.0-alpha] — 2026-05-19
 
@@ -96,5 +188,4 @@ Phase 0 — Bootstrap.
 - [ ] CI green on first push to `main` — verified in Phase 0.14.
 - [x] No deferred TODOs in Phase 0 code.
 
-[Unreleased]: https://github.com/ArioMoniri/pinsilico/compare/v0.0.0-alpha...HEAD
 [0.0.0-alpha]: https://github.com/ArioMoniri/pinsilico/releases/tag/v0.0.0-alpha
