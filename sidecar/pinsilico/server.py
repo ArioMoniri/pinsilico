@@ -106,6 +106,30 @@ def create_app(*, token: str | None = None) -> FastAPI:
     def health() -> HealthResponse:
         return HealthResponse(status="ok", version=__version__)
 
+    class ShutdownResponse(BaseModel):
+        status: str = Field(default="scheduled", examples=["scheduled"])
+        message: str = Field(
+            default="Sidecar shutdown scheduled on the next event-loop tick.",
+        )
+
+    @app.post(
+        "/shutdown",
+        response_model=ShutdownResponse,
+        status_code=202,
+        summary="Schedule sidecar exit (token-gated)",
+        description=(
+            "The Tauri shell calls this on window close. The route returns "
+            "202 immediately; the sidecar exits asynchronously so the HTTP "
+            "client gets a clean response before the process dies."
+        ),
+        dependencies=[Depends(verifier)],
+    )
+    def shutdown() -> ShutdownResponse:
+        # Phase 6 wiring schedules an `os._exit(0)` here on a small delay;
+        # in tests we just return the envelope. The actual exit hook is
+        # wired in pinsilico.__main__ after uvicorn starts.
+        return ShutdownResponse()
+
     @app.get(
         "/version",
         response_model=VersionResponse,

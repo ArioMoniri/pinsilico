@@ -5,6 +5,8 @@
 //! duplicating the Tauri setup, and lets us unit-test the pure helpers that
 //! anchor the cross-stack version sync without spawning a real window.
 
+pub mod sidecar;
+
 /// Single-source app version on the Rust side.
 ///
 /// Pulled from `CARGO_PKG_VERSION` at compile time so it can never drift from
