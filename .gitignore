@@ -35,8 +35,12 @@ develop-eggs/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# /lib and /lib64 are Python venv internals. Anchored so we don't ignore
+# app/src/lib/ (TS source).
+/sidecar/lib/
+/sidecar/lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
