@@ -7,7 +7,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-(Nothing yet — Phase 3 lands next.)
+(Nothing yet — Phase 5 lands next.)
+
+## [0.4.0-alpha] — 2026-05-19
+
+Phase 4 — Brownian-dynamics simulation engine.
+
+### Added
+
+#### Pure rules (`pinsilico.sim.rules`) — 100 % coverage
+- `boltzmann_factor(dg_kcal_mol, temperature_k)` — `exp(-ΔG/RT)`.
+- `residence_time(dg_kcal_mol, temperature_k, tau0_frames)` —
+  Boltzmann-scaled τ in simulation frames.
+- `GAS_CONSTANT_KCAL_PER_MOL_K` constant in the right units.
+
+#### Concentration helpers (`pinsilico.sim.concentration`)
+- `particle_count_for(concentration_uM, volume_litres)` and
+  `uM_for_count` inverse. Hypothesis round-trip test verifies they
+  agree within ±1 particle's worth of µM across 18 orders of magnitude.
+
+#### Simulator (`pinsilico.sim.engine`)
+- `BindingSite`, `Particle`, `SimConfig` (frozen) dataclasses.
+- `Simulator.step()` — overdamped Langevin random walk `σ = √(2·D·Δt)`,
+  optional attractive shift toward the nearest unoccupied pocket,
+  cubic-box reflective walls, protein hard repulsion (sphere
+  projection), binding when in-radius, exponential residence sample.
+- `Simulator.fast_forward(n_events)` — direct categorical sampling
+  weighted by `exp(-ΔG/RT)`. Skips integration for the SimPanel
+  fast-forward path.
+
+### Property tests
+- ⟨r²⟩ = 6Dt within 10 % across 500 particles × 100 steps
+  (BUILD_PROMPT.md §6 free-diffusion invariant).
+- Same seed ⇒ bit-identical positions after 200 frames.
+- Different seeds diverge.
+- Particle count conserved.
+- One-site/many-particles never exceeds occupancy of 1.
+- Weak site (ΔG=+2) releases repeatedly across 200 frames.
+- `fast_forward` favours stronger site and is deterministic under seed.
+
+214 tests passing, 93 % overall coverage, sim/rules 100 %, sim/engine 89 %.
+
+## [0.3.0-alpha] — 2026-05-19
+
+Phase 3 — Pocket detection + docking adapters.
+
+### Added
+
+#### Pocket detection (`pinsilico.pocket`)
+- `PocketDetector` Protocol + `Pocket` dataclass (identifier,
+  centroid_xyz np.ndarray, volume_a3, hydrophobicity,
+  druggability_score, residue_ids).
+- `pinsilico.pocket.fpocket.FpocketDetector` — subprocess wrapper.
+  `_parse_info_txt` regex-extracts druggability/volume/hydrophobic-density
+  from `<receptor>_info.txt`; `_pocket_centroid` reads
+  `pocketN_vert.pqr` and returns the mean alpha-sphere xyz. Empty
+  output → empty list; missing binary / non-zero exit → typed
+  `PocketDetectionError`.
+
+#### Docking adapters (`pinsilico.docking`)
+- `DockingAdapter` Protocol, `DockingBox`, `Pose`, `DockingResult`
+  dataclasses with `best_affinity_kcal_mol` property.
+- `pinsilico.docking.smina_vina.SminaVinaAdapter` — shared adapter for
+  Smina and AutoDock Vina (same CLI surface). `_parse_pdbqt_output`
+  reads `REMARK VINA RESULT` lines per MODEL block. Receptor/ligand
+  PDBQT prep helpers are placeholders that raise until Phase 6 wires
+  obabel.
+- `pinsilico.docking.diffdock.DiffDockAdapter` — gated by
+  weights-presence check. Missing weights raises `DockingError` with
+  `ENGINE_NOT_AVAILABLE` text + the published weights URL. Phase 5
+  routes will map this to a 409 with download metadata.
+- `pinsilico.docking.boltz.BoltzAdapter` — affinity-only fallback
+  with the same weights-presence gate. `AFFINITY_ONLY = True` class
+  var signals to consumers that pose geometry is not available.
+
+### Tests
+- 29 new tests (11 fpocket, 11 Smina/Vina, 7 DiffDock/Boltz). All
+  subprocess fully mocked. Integration tests against real binaries
+  (1HSG/indinavir for Phase 3 DoD) live in `tests/integration/`
+  behind env-var gates; they run in Phase 12.
+
+[0.2.0-alpha]: https://github.com/ArioMoniri/pinsilico/compare/v0.1.0-alpha...v0.2.0-alpha
+[0.3.0-alpha]: https://github.com/ArioMoniri/pinsilico/compare/v0.2.0-alpha...v0.3.0-alpha
+[0.4.0-alpha]: https://github.com/ArioMoniri/pinsilico/releases/tag/v0.4.0-alpha
 
 ## [0.2.0-alpha] — 2026-05-19
 
@@ -153,7 +235,7 @@ Phase 1 — Sidecar foundation.
 - [x] ≥ 85% coverage (actual: 92%)
 - [x] No deferred TODOs in Phase 1 code
 
-[Unreleased]: https://github.com/ArioMoniri/pinsilico/compare/v0.2.0-alpha...HEAD
+[Unreleased]: https://github.com/ArioMoniri/pinsilico/compare/v0.4.0-alpha...HEAD
 
 ## [0.0.0-alpha] — 2026-05-19
 
