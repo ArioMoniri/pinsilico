@@ -27,6 +27,7 @@ import pytest
 from pinsilico.logs import configure_logger, get_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from pathlib import Path
 
 
@@ -36,10 +37,22 @@ def captured_stdout() -> io.StringIO:
 
 
 @pytest.fixture(autouse=True)
-def _reset_root_logger() -> None:
-    """Each test gets a clean stdlib logger; structlog re-configures from scratch."""
+def _reset_root_logger() -> Iterator[None]:
+    """Clean root logger before each test, close handlers afterwards.
+
+    Closing on teardown matters because RotatingFileHandler holds an open
+    file descriptor; without an explicit close, garbage collection emits a
+    ResourceWarning which our ``filterwarnings = error`` config promotes
+    to a test failure.
+    """
     root = logging.getLogger()
-    root.handlers.clear()
+    for h in list(root.handlers):
+        h.close()
+        root.removeHandler(h)
+    yield
+    for h in list(root.handlers):
+        h.close()
+        root.removeHandler(h)
 
 
 def _parse_lines(buf: io.StringIO) -> list[dict[str, object]]:
@@ -116,18 +129,14 @@ class TestConfigureLogger:
 
 
 class TestFileSink:
-    def test_creates_log_dir_if_missing(
-        self, captured_stdout: io.StringIO, tmp_path: Path
-    ) -> None:
+    def test_creates_log_dir_if_missing(self, captured_stdout: io.StringIO, tmp_path: Path) -> None:
         log_dir = tmp_path / "nested" / "logs"
         assert not log_dir.exists()
         configure_logger(level="info", log_dir=log_dir, stream=captured_stdout)
         assert log_dir.exists()
         assert log_dir.is_dir()
 
-    def test_writes_to_file_sink(
-        self, captured_stdout: io.StringIO, tmp_path: Path
-    ) -> None:
+    def test_writes_to_file_sink(self, captured_stdout: io.StringIO, tmp_path: Path) -> None:
         configure_logger(level="info", log_dir=tmp_path, stream=captured_stdout)
         get_logger("file_test").info("on_disk", marker="42")
         log_file = tmp_path / "sidecar.log"
