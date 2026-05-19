@@ -7,7 +7,7 @@ import path from "node:path";
 const TAURI_DEV_PORT = 1420;
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
@@ -30,4 +30,4 @@ export default defineConfig(async () => ({
     minify: !process.env.TAURI_ENV_DEBUG ? "esbuild" : false,
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
   },
-}));
+});

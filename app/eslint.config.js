@@ -1,5 +1,11 @@
-// Flat config — root-level. Lints the React/TS frontend under app/.
+// Flat config for the React/TS frontend.
 // Python and Rust are linted by their own tooling (ruff, clippy).
+// Lives under app/ so the import of `globals` resolves through app/'s
+// node_modules without needing a root-level package.json.
+//
+// Phase 0 keeps the lint baseline simple (recommended + react-hooks).
+// Phase 7 (frontend skeleton) re-introduces typed linting once there is
+// real frontend code that benefits from the type-aware rules.
 
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
@@ -11,26 +17,22 @@ import globals from "globals";
 export default tseslint.config(
   {
     ignores: [
-      "**/node_modules/**",
-      "**/dist/**",
-      "**/.vite/**",
-      "**/src-tauri/target/**",
-      "**/src-tauri/gen/**",
-      "**/coverage/**",
-      "**/playwright-report/**",
+      "node_modules/**",
+      "dist/**",
+      ".vite/**",
+      "src-tauri/**",
+      "coverage/**",
+      "playwright-report/**",
     ],
   },
   js.configs.recommended,
-  ...tseslint.configs.strictTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked,
+  ...tseslint.configs.recommended,
   {
-    files: ["app/**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx}"],
     languageOptions: {
       parser: tseslint.parser,
-      parserOptions: {
-        project: ["./app/tsconfig.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
+      ecmaVersion: 2022,
+      sourceType: "module",
       globals: {
         ...globals.browser,
       },
@@ -57,12 +59,6 @@ export default tseslint.config(
           minimumDescriptionLength: 10,
         },
       ],
-    },
-  },
-  {
-    files: ["app/**/*.config.{ts,js}", "app/vite.config.ts", "app/vitest.config.ts"],
-    languageOptions: {
-      globals: { ...globals.node },
     },
   },
   prettier,

@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.vite/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/binaries/
+src-tauri/icons/
+src-tauri/Cargo.lock
+coverage/
+playwright-report/
+pnpm-lock.yaml
+*.lock
+**/.gitkeep
