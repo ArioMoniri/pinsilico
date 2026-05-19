@@ -1,0 +1,98 @@
+# Pre-commit configuration for PInSilico.
+#
+# Mirrors the same gates CI runs (BUILD_PROMPT.md §5: zero warnings on
+# ruff, mypy, eslint, prettier, clippy, rustfmt). Devs run `make install`
+# which installs these hooks; the same versions run in .github/workflows/ci.yml.
+#
+# Run manually: `pre-commit run --all-files`
+
+default_language_version:
+  python: python3.11
+  node: "20"
+
+repos:
+  # ---------------------------------------------------------------- meta
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+        args: [--maxkb=512]
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # ---------------------------------------------------------------- python
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.7
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^sidecar/
+      - id: ruff-format
+        files: ^sidecar/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.1
+    hooks:
+      - id: mypy
+        files: ^sidecar/pinsilico/
+        args: [--config-file=sidecar/pyproject.toml]
+        additional_dependencies:
+          - fastapi>=0.110,<0.116
+          - pydantic>=2.7,<3
+          - structlog>=24.1,<25
+          - types-requests
+
+  # ---------------------------------------------------------------- frontend
+  # Driven via local `system` hooks so we share the exact versions pinned in
+  # app/package.json rather than letting pre-commit pull a parallel toolchain.
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier (check)
+        language: system
+        entry: pnpm --filter pinsilico-app exec prettier --check
+        types_or: [ts, tsx, javascript, jsx, css, html, json, yaml, markdown]
+        exclude: '^(pnpm-lock\.yaml|app/src-tauri/Cargo\.lock|\.gitkeep|.*\.png)$'
+        pass_filenames: true
+
+      - id: eslint
+        name: eslint (--max-warnings 0)
+        language: system
+        entry: pnpm --filter pinsilico-app exec eslint --max-warnings 0
+        types_or: [ts, tsx, javascript, jsx]
+        files: ^app/
+        pass_filenames: true
+
+      - id: tsc
+        name: tsc --noEmit
+        language: system
+        entry: pnpm --filter pinsilico-app exec tsc --noEmit
+        files: ^app/.*\.(ts|tsx)$
+        pass_filenames: false
+
+  # ---------------------------------------------------------------- rust
+  # rustfmt and clippy run via local hooks because cargo lives outside the
+  # pre-commit virtualenv. CI runs the same commands.
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt --check
+        language: system
+        entry: bash -c 'cargo fmt --manifest-path app/src-tauri/Cargo.toml --check'
+        files: ^app/src-tauri/.*\.rs$
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy -- -D warnings
+        language: system
+        entry: bash -c 'cargo clippy --manifest-path app/src-tauri/Cargo.toml --all-targets -- -D warnings'
+        files: ^app/src-tauri/(src/.*\.rs|Cargo\.toml)$
+        pass_filenames: false
