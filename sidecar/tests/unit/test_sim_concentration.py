@@ -59,9 +59,7 @@ class TestRoundTrip:
         c=st.floats(min_value=0.01, max_value=1000.0, allow_nan=False, allow_infinity=False),
         v=st.floats(min_value=1e-18, max_value=1e-12, allow_nan=False, allow_infinity=False),
     )
-    def test_concentration_round_trips_within_one_particle(
-        self, c: float, v: float
-    ) -> None:
+    def test_concentration_round_trips_within_one_particle(self, c: float, v: float) -> None:
         n = particle_count_for(concentration_uM=c, volume_litres=v)
         back = uM_for_count(particle_count=n, volume_litres=v)
         # Within ±1 particle's worth of concentration

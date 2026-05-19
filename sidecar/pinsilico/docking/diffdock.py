@@ -69,8 +69,5 @@ class DiffDockAdapter:
         # Weights present, but the actual diffdock-cli invocation lands
         # with Phase 12 binary bundling. Until then, fail loud so callers
         # don't silently get an empty result.
-        msg = (
-            "DiffDock weights present, but the inference path lands "
-            "with Phase 12 sidecar wiring."
-        )
+        msg = "DiffDock weights present, but the inference path lands with Phase 12 sidecar wiring."
         raise DockingError(msg, engine=self.engine_name)

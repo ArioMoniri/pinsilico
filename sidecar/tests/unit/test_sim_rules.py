@@ -78,7 +78,9 @@ class TestBoltzmannFactor:
         # ΔG = -RT * ln(10) ≈ -1.364 kcal/mol at 298 K → factor 10
         rt298 = GAS_CONSTANT_KCAL_PER_MOL_K * 298.0
         dg = -rt298 * math.log(10)
-        assert boltzmann_factor(dg_kcal_mol=dg, temperature_k=298.0) == pytest.approx(10.0, rel=1e-9)
+        assert boltzmann_factor(dg_kcal_mol=dg, temperature_k=298.0) == pytest.approx(
+            10.0, rel=1e-9
+        )
 
     @given(
         dg_a=st.floats(min_value=-12.0, max_value=0.0, allow_nan=False, allow_infinity=False),
@@ -95,9 +97,9 @@ class TestBoltzmannFactor:
         temp = 298.0
         rt = GAS_CONSTANT_KCAL_PER_MOL_K * temp
         expected = math.exp(-(dg_a - dg_b) / rt)
-        observed = boltzmann_factor(
-            dg_kcal_mol=dg_a, temperature_k=temp
-        ) / boltzmann_factor(dg_kcal_mol=dg_b, temperature_k=temp)
+        observed = boltzmann_factor(dg_kcal_mol=dg_a, temperature_k=temp) / boltzmann_factor(
+            dg_kcal_mol=dg_b, temperature_k=temp
+        )
         # 1 % tolerance — math.exp is exact, so the only drift would be
         # floating-point noise. Generous bound for portability.
         assert observed == pytest.approx(expected, rel=0.01)

@@ -61,6 +61,4 @@ def residence_time(
     if tau0_frames < 0.0:
         msg = f"tau0_frames must be non-negative, got {tau0_frames}"
         raise ValueError(msg)
-    return tau0_frames * boltzmann_factor(
-        dg_kcal_mol=dg_kcal_mol, temperature_k=temperature_k
-    )
+    return tau0_frames * boltzmann_factor(dg_kcal_mol=dg_kcal_mol, temperature_k=temperature_k)

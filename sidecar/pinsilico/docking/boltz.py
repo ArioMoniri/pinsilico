@@ -16,7 +16,9 @@ from typing import ClassVar
 
 from pinsilico.docking.base import DockingBox, DockingError, DockingResult
 
-BOLTZ_WEIGHTS_URL = "https://github.com/jwohlwend/boltz/releases/download/v0.4.0/boltz2-affinity.tar.gz"
+BOLTZ_WEIGHTS_URL = (
+    "https://github.com/jwohlwend/boltz/releases/download/v0.4.0/boltz2-affinity.tar.gz"
+)
 
 
 def _weights_present(weights_dir: Path) -> bool:

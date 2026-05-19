@@ -48,9 +48,7 @@ class TestDiffDockAdapter:
         assert exc.value.engine == "diffdock"
         assert "ENGINE_NOT_AVAILABLE" in str(exc.value) or "weights" in str(exc.value).lower()
 
-    def test_present_weights_pass_the_gate(
-        self, tmp_path: Path, box: DockingBox
-    ) -> None:
+    def test_present_weights_pass_the_gate(self, tmp_path: Path, box: DockingBox) -> None:
         weights = tmp_path / "weights"
         weights.mkdir()
         (weights / "model.ckpt").write_bytes(b"")
