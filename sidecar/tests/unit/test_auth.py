@@ -17,11 +17,11 @@ Invariants locked here:
 
 from __future__ import annotations
 
+import string
 from typing import TYPE_CHECKING
 
 import pytest
 from fastapi.testclient import TestClient
-
 from pinsilico.auth import generate_token, verify_token
 from pinsilico.server import create_app
 
@@ -50,8 +50,6 @@ class TestGenerateToken:
         assert len(generate_token()) >= 32
 
     def test_url_safe_characters_only(self) -> None:
-        import string
-
         allowed = set(string.ascii_letters + string.digits + "-_")
         for _ in range(20):
             tok = generate_token()
@@ -105,9 +103,7 @@ class TestRouteAuthGating:
         response = client.get("/version", headers={"X-Pinsilico-Token": "bogus"})
         assert response.status_code == 401
 
-    def test_version_route_accepts_correct_token(
-        self, client: TestClient, token: str
-    ) -> None:
+    def test_version_route_accepts_correct_token(self, client: TestClient, token: str) -> None:
         response = client.get("/version", headers={"X-Pinsilico-Token": token})
         assert response.status_code == 200
 
@@ -121,12 +117,8 @@ class TestRouteAuthGating:
         assert isinstance(body["error"]["message"], str)
         assert body["error"]["message"]
 
-    def test_401_for_wrong_token_uses_invalid_code(
-        self, client: TestClient
-    ) -> None:
-        body = client.get(
-            "/version", headers={"X-Pinsilico-Token": "bogus"}
-        ).json()
+    def test_401_for_wrong_token_uses_invalid_code(self, client: TestClient) -> None:
+        body = client.get("/version", headers={"X-Pinsilico-Token": "bogus"}).json()
         assert body["error"]["code"] == "INVALID_TOKEN"
 
 

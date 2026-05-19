@@ -3,19 +3,27 @@
 ``python -m pinsilico`` (or the installed ``pinsilico-sidecar`` script)
 launches uvicorn against :mod:`pinsilico.server`.
 
-Phase 0 prints the bound host/port on stdout so a human (and, in Phase 6,
-the Tauri shell) can discover where the sidecar is listening. Phase 1
-extends this with the per-launch auth token line
-``PINSILICO_TOKEN=<token>``.
+Phase 1 stdout-as-IPC contract — the Tauri shell (Phase 6) parses four
+lines from this script's stdout, in order, before anything else:
+
+    PINSILICO_HOST=127.0.0.1
+    PINSILICO_PORT=51234
+    PINSILICO_VERSION=0.0.1
+    PINSILICO_TOKEN=<urlsafe-token>
+
+After these four lines uvicorn's own logs begin. The shell ignores
+everything after the token line.
 """
 
 from __future__ import annotations
 
+import os
 import socket
 import sys
 
 import uvicorn
 
+from pinsilico.auth import resolve_token
 from pinsilico.config import SidecarConfig
 
 
@@ -23,10 +31,8 @@ def _resolve_port(host: str, requested: int) -> int:
     """Bind a probe socket to pick an ephemeral port when ``requested == 0``.
 
     Returns the actual port (either the requested one or the OS-assigned
-    free port). Uvicorn would do this internally too, but doing it up front
-    lets us print ``PINSILICO_PORT=<port>`` *before* uvicorn's own log
-    noise — important because the Tauri shell (Phase 6) parses the first
-    matching line from stdout.
+    free port). Doing this up front lets us print ``PINSILICO_PORT=<port>``
+    *before* uvicorn's own log noise.
     """
     if requested != 0:
         return requested
@@ -39,19 +45,23 @@ def _resolve_port(host: str, requested: int) -> int:
 def main(argv: list[str] | None = None) -> int:
     """Entry point. Returns a process exit code.
 
-    The ``argv`` parameter is reserved for Phase 1 CLI flags (``--log-level``,
-    ``--token-out=PATH``); Phase 0 ignores it.
+    The ``argv`` parameter is reserved for future CLI flags (``--log-level``,
+    ``--token-out=PATH``); Phase 1 ignores it.
     """
-    _ = argv  # silence ARG001 until Phase 1 reads CLI flags
+    _ = argv
     cfg = SidecarConfig()
     port = _resolve_port(cfg.host, cfg.port)
+    token = resolve_token()
 
-    # Stdout-as-IPC: print discovery lines before uvicorn starts so consumers
-    # that parse stdout (the Tauri shell, Phase 6) see them first. The KEY=VALUE
-    # format lets a tiny `awk -F=` reader extract them.
+    # Export the token in the process env so the uvicorn-spawned worker
+    # picks it up when it imports `pinsilico.server` and runs create_app().
+    os.environ["PINSILICO_TOKEN"] = token
+
+    # Stdout-as-IPC: order matters. Tauri shell parses these lines top-down.
     sys.stdout.write(f"PINSILICO_HOST={cfg.host}\n")
     sys.stdout.write(f"PINSILICO_PORT={port}\n")
     sys.stdout.write(f"PINSILICO_VERSION={cfg.version}\n")
+    sys.stdout.write(f"PINSILICO_TOKEN={token}\n")
     sys.stdout.flush()
 
     uvicorn.run(
