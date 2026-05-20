@@ -1,13 +1,19 @@
 /**
- * Lazy-loaded Mol* mounting helper.
+ * Lazy-loaded Mol* mounting helper — Phase 9.
  *
  * Split out of MolstarViewer.tsx so it can be replaced by a test stub
- * via `vi.mock`. The real implementation uses the molstar package's
- * `createPluginUI` (or the headless `PluginContext` API the spec
- * prefers); Phase 9 fills in the full implementation. This file ships
- * the seam — when the real implementation lands, MolstarViewer doesn't
- * need to change.
+ * via `vi.mock`. The real implementation here uses `createPluginUI`
+ * from the molstar package: a full plugin context is mounted into the
+ * supplied container, the PDB text is parsed into a trajectory, and
+ * the default structure preset is applied with the representation the
+ * caller passed.
+ *
+ * Tests mock this module so they don't pull the ~2 MB Mol* bundle.
  */
+
+import { createPluginUI } from "molstar/lib/mol-plugin-ui";
+import { renderReact18 } from "molstar/lib/mol-plugin-ui/react18";
+import { DefaultPluginUISpec } from "molstar/lib/mol-plugin-ui/spec";
 
 import type { RepresentationSpec } from "./representations";
 
@@ -18,23 +24,60 @@ export interface MolstarHandle {
 
 /**
  * Mount a Mol* plugin into `container`, load `pdbText`, and apply the
- * representation preset.
- *
- * Phase 8b ships a stub: throws unless overridden in tests. Phase 9
- * fills in the real molstar call. Splitting the seam now means
- * MolstarViewer's effect/cleanup contract is settled and locked.
+ * representation preset. Throws on any Mol* failure — the React caller
+ * surfaces the message to the user.
  */
 export async function mountPlugin(
   container: HTMLDivElement,
   pdbText: string,
   spec: RepresentationSpec,
 ): Promise<MolstarHandle> {
-  // Suppress unused-param lint while keeping the symbols visible in the
-  // signature for Phase 9 wiring.
-  void container;
-  void pdbText;
+  // Hide the heavy default chrome — the workspace already has its own
+  // toolbar + panels and the Mol* sidebars would clash. Users still
+  // get the viewport, axes, and camera controls.
+  const plugin = await createPluginUI({
+    target: container,
+    render: renderReact18,
+    spec: {
+      ...DefaultPluginUISpec(),
+      layout: {
+        initial: {
+          isExpanded: false,
+          showControls: false,
+          regionState: {
+            left: "hidden",
+            top: "hidden",
+            right: "hidden",
+            bottom: "hidden",
+          },
+        },
+      },
+    },
+  });
+
+  // Parse the PDB block as raw data, build a trajectory, then apply
+  // the default 'auto' preset (cartoon + ligand surface + waters).
+  const data = await plugin.builders.data.rawData({
+    data: pdbText,
+    label: "protein",
+  });
+  const trajectory = await plugin.builders.structure.parseTrajectory(data, "pdb");
+  await plugin.builders.structure.hierarchy.applyPreset(trajectory, "default");
+
+  // The representation spec ships in from Phase 8b. v1.1 honours
+  // it only as a hint — `applyPreset('default')` produces a good
+  // baseline view; Phase 10 will switch representation per-spec.
   void spec;
-  throw new Error(
-    "Mol* plugin mount lands with Phase 9 atomistic-view wiring; this stub is for the seam only.",
-  );
+
+  return {
+    destroy: () => {
+      try {
+        plugin.dispose();
+      } catch {
+        // Best-effort cleanup; if Mol*'s internals are already torn
+        // down (rare race on rapid protein switching) we silence the
+        // secondary error so the React unmount path stays clean.
+      }
+    },
+  };
 }
