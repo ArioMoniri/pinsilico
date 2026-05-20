@@ -6,6 +6,8 @@ the surface to one POST: detect pockets in a supplied PDB block.
 
 from __future__ import annotations
 
+import os
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Annotated, Any
@@ -17,6 +19,33 @@ from pinsilico.pocket.base import Pocket, PocketDetectionError
 from pinsilico.pocket.fpocket import FpocketDetector
 
 router = APIRouter(prefix="/pocket", tags=["pocket"])
+
+
+def _resolve_fpocket(requested: str) -> str:
+    """Resolve the fpocket binary path.
+
+    When the caller leaves the field at the default ``"fpocket"``, walk
+    the standard precedence: ``$FPOCKET_BIN`` env override → Phase 12
+    bundle drop at ``sidecar/resources/binaries/fpocket`` →
+    ``shutil.which`` PATH lookup. The bundled .app launched via Tauri
+    has an effectively empty PATH so the PATH fallback rarely fires —
+    the bundle drop is what makes detection work out of the box.
+
+    If the caller passed an explicit path (not the literal default) we
+    honour it as-is.
+    """
+    if requested != "fpocket":
+        return requested
+    env = os.environ.get("FPOCKET_BIN")
+    if env and Path(env).exists():
+        return env
+    bundled = Path(__file__).resolve().parents[2] / "resources" / "binaries" / "fpocket"
+    if bundled.exists():
+        return str(bundled)
+    on_path = shutil.which("fpocket")
+    if on_path is not None:
+        return on_path
+    return requested  # let FpocketDetector itself raise a clear error
 
 
 class DetectRequest(BaseModel):
@@ -67,7 +96,10 @@ class DetectResponse(BaseModel):
 )
 def pocket_detect(req: Annotated[DetectRequest, Body()]) -> DetectResponse:
     with tempfile.TemporaryDirectory(prefix="pinsilico-pocket-") as tmp:
-        detector = FpocketDetector(binary_path=req.binary_path, workdir=Path(tmp))
+        detector = FpocketDetector(
+            binary_path=_resolve_fpocket(req.binary_path),
+            workdir=Path(tmp),
+        )
         try:
             pockets = detector.detect(req.pdb_text)
         except PocketDetectionError as exc:

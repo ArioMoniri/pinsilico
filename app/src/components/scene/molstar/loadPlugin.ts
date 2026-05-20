@@ -14,6 +14,11 @@
 import { createPluginUI } from "molstar/lib/mol-plugin-ui";
 import { renderReact18 } from "molstar/lib/mol-plugin-ui/react18";
 import { DefaultPluginUISpec } from "molstar/lib/mol-plugin-ui/spec";
+// Mol*'s default UI styling — without it the canvas renders but the
+// overlay (camera controls, axes, loading indicator) is invisible and
+// in some browsers the viewer collapses to a 0x0 box. The Vite build
+// inlines this CSS into the main chunk, so there's no runtime fetch.
+import "molstar/build/viewer/molstar.css";
 
 import type { RepresentationSpec } from "./representations";
 

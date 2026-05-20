@@ -100,7 +100,22 @@ export function buildExampleKit(): ExampleKit {
         source: "upload",
         role: "target",
         pdb_text: CRAMBIN_PDB,
-        pockets: [],
+        // Pre-detected pockets so the kit is fully usable even when
+        // the sidecar's fpocket binary is missing. The centroids
+        // approximate crambin's hydrophobic core (residues 1-13);
+        // druggability is set deliberately moderate (0.5) so the
+        // derived ΔG in Workspace's sim runner lands at -7 kcal/mol —
+        // a reasonable demo magnitude.
+        pockets: [
+          {
+            identifier: "demo-pocket-1",
+            centroid_xyz: [13.5, 9.5, 12.0],
+            volume_a3: 250,
+            hydrophobicity: 0.65,
+            druggability_score: 0.5,
+            residue_ids: ["A:1", "A:2", "A:3", "A:4", "A:5", "A:6", "A:7"],
+          },
+        ],
       },
     ],
     ligands: [
@@ -120,6 +135,6 @@ export function buildExampleKit(): ExampleKit {
       },
     ],
     blurb:
-      "Loaded 1CRN (crambin, 46 residues) + aspirin + caffeine. Click “Detect pockets” on the protein card, then “Dock” in the ligand panel.",
+      "Loaded 1CRN (crambin) + 1 demo pocket + aspirin + caffeine. Try Run in the Simulation panel, or open the Dock dialog from the ligand panel.",
   };
 }

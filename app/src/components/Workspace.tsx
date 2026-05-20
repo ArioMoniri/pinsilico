@@ -15,6 +15,7 @@ import { SimPanel, type SimPanelValues } from "./panels/SimPanel";
 import { Toolbar, type SidecarStatus } from "./Toolbar";
 import { StatusBar } from "./StatusBar";
 import { Viewport } from "./Viewport";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { AddProteinDialog } from "./dialogs/AddProteinDialog";
 import { AddLigandDialog } from "./dialogs/AddLigandDialog";
 import { DockingDialog } from "./dialogs/DockingDialog";
@@ -404,7 +405,9 @@ export function Workspace(): JSX.Element {
         </aside>
 
         <main style={viewportStyle}>
-          <Viewport positions={trajectoryPositions} bound={trajectoryBound} />
+          <ErrorBoundary label="3D viewport">
+            <Viewport positions={trajectoryPositions} bound={trajectoryBound} />
+          </ErrorBoundary>
         </main>
 
         <aside style={rightPanelStyle}>
