@@ -100,6 +100,11 @@ app/src-tauri/binaries/*
 # PInSilico user data lives in ~/.pinsilico/ — never in-repo
 .pinsilico/
 
+# Local-only stash for personal secrets / signing keys / Apple ID dumps.
+# Use this folder for anything you DON'T want git to ever see, instead
+# of leaving sensitive files in the working tree.
+/secretme/
+
 # Bundled binaries fetched at build time (checksum-verified)
 sidecar/resources/binaries/*
 !sidecar/resources/binaries/.gitkeep
