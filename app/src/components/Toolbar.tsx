@@ -9,6 +9,8 @@ interface ToolbarProps {
   sidecarStatus: SidecarStatus;
   sidecarVersion: string | null;
   onAddProtein: () => void;
+  onSaveSession: () => void;
+  onLoadSession: () => void;
 }
 
 /**
@@ -21,6 +23,8 @@ export function Toolbar({
   sidecarStatus,
   sidecarVersion,
   onAddProtein,
+  onSaveSession,
+  onLoadSession,
 }: ToolbarProps): JSX.Element {
   const view = useSceneStore((s) => s.view);
   const setView = useSceneStore((s) => s.setView);
@@ -48,8 +52,24 @@ export function Toolbar({
         ))}
       </nav>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
         <SidecarPill status={sidecarStatus} version={sidecarVersion} />
+        <button
+          type="button"
+          onClick={onLoadSession}
+          style={secondaryButtonStyle}
+          title="Open a .pinsilico session bundle"
+        >
+          Open
+        </button>
+        <button
+          type="button"
+          onClick={onSaveSession}
+          style={secondaryButtonStyle}
+          title="Save the workspace as a .pinsilico session bundle"
+        >
+          Save
+        </button>
         <button type="button" onClick={onAddProtein} style={primaryButtonStyle}>
           + Add protein
         </button>
@@ -144,4 +164,14 @@ const primaryButtonStyle: React.CSSProperties = {
   cursor: "pointer",
   fontWeight: 600,
   fontSize: "0.85rem",
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+  background: "transparent",
+  color: "#b6bcc6",
+  border: "1px solid #2a2f38",
+  padding: "0.35rem 0.7rem",
+  borderRadius: 4,
+  cursor: "pointer",
+  fontSize: "0.82rem",
 };

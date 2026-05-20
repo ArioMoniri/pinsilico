@@ -157,6 +157,42 @@ export interface DrugBankResponse {
   smiles: string | null;
 }
 
+export interface SessionSavePayloadProtein {
+  identifier: string;
+  source: string;
+  role: string;
+  pdb_text: string;
+  pockets: {
+    identifier: string;
+    centroid_xyz: [number, number, number];
+    volume_a3?: number;
+    hydrophobicity?: number;
+    druggability_score?: number;
+    residue_ids?: string[];
+  }[];
+}
+
+export interface SessionSavePayloadLigand {
+  identifier: string;
+  source: string;
+  smiles: string;
+  is_inhibitor: boolean;
+  is_natural_ligand: boolean;
+}
+
+export interface SessionSavePayload {
+  seed?: number;
+  proteins: SessionSavePayloadProtein[];
+  ligands: SessionSavePayloadLigand[];
+}
+
+export interface SessionLoadResponse {
+  version: string;
+  seed: number;
+  proteins: SessionSavePayloadProtein[];
+  ligands: SessionSavePayloadLigand[];
+}
+
 export class PinsilicoClient {
   private readonly config: ClientConfig;
   private readonly fetchFn: typeof fetch;
@@ -280,6 +316,55 @@ export class PinsilicoClient {
       pdb_text: pdbText,
       binary_path: binaryPath,
     });
+  }
+
+  // -------------------------------------------------------------- session
+  /**
+   * POST the workspace state to the sidecar, receive a deterministic
+   * `.pinsilico` zip payload. The caller hands the bytes to the
+   * browser as a download.
+   */
+  async sessionSave(payload: SessionSavePayload): Promise<Blob> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "X-Pinsilico-Token": this.config.token,
+    };
+    const response = await this.fetchFn(`${this.config.apiBase}/session/save`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const envelope = await response.json().catch(() => ({
+        error: { code: `HTTP_${response.status}`, message: response.statusText, details: {} },
+      }));
+      throw new ApiError(response.status, envelope as ErrorEnvelope);
+    }
+    return await response.blob();
+  }
+
+  /**
+   * Upload a `.pinsilico` bundle. Returns the parsed contents the
+   * workspace folds back into its session store.
+   */
+  async sessionLoad(file: Blob): Promise<SessionLoadResponse> {
+    const headers: Record<string, string> = {
+      "X-Pinsilico-Token": this.config.token,
+    };
+    const body = new FormData();
+    body.append("file", file, "session.pinsilico");
+    const response = await this.fetchFn(`${this.config.apiBase}/session/load`, {
+      method: "POST",
+      headers,
+      body,
+    });
+    if (!response.ok) {
+      const envelope = await response.json().catch(() => ({
+        error: { code: `HTTP_${response.status}`, message: response.statusText, details: {} },
+      }));
+      throw new ApiError(response.status, envelope as ErrorEnvelope);
+    }
+    return (await response.json()) as SessionLoadResponse;
   }
 
   // ------------------------------------------------------------------ sim

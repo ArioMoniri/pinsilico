@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState, type JSX } from "react";
 
-import { ApiError, PinsilicoClient, type FastForwardResponse } from "../lib/api";
+import {
+  ApiError,
+  PinsilicoClient,
+  type FastForwardResponse,
+  type SessionLoadResponse,
+} from "../lib/api";
 import { awaitSidecarReady } from "../lib/tauri";
 import { useSessionStore } from "../stores/session";
 import { ProteinPanel } from "./panels/ProteinPanel";
@@ -83,6 +88,114 @@ export function Workspace(): JSX.Element {
     if (apiBase === null || token === null) return null;
     return new PinsilicoClient({ apiBase, token });
   }, [apiBase, token]);
+
+  // Save the workspace to a deterministic `.pinsilico` bundle. The
+  // sidecar serialises (it owns the zip-layout invariants) and returns
+  // the bytes; we hand them to the browser as a Download.
+  const onSaveSession = (): void => {
+    if (client === null) {
+      setStatusMessage("Sidecar not connected — can't save session.");
+      return;
+    }
+    const state = useSessionStore.getState();
+    const payload = {
+      seed: 0,
+      proteins: Object.values(state.proteins).map((p) => ({
+        identifier: p.identifier,
+        source: p.source,
+        role: p.role,
+        pdb_text: p.pdb_text,
+        pockets: p.pockets.map((pk) => ({
+          identifier: pk.identifier,
+          centroid_xyz: pk.centroid_xyz,
+          volume_a3: pk.volume_a3,
+          hydrophobicity: pk.hydrophobicity,
+          druggability_score: pk.druggability_score,
+          residue_ids: pk.residue_ids,
+        })),
+      })),
+      ligands: Object.values(state.ligands).map((lig) => ({
+        identifier: lig.identifier,
+        source: lig.source,
+        smiles: lig.smiles,
+        is_inhibitor: lig.is_inhibitor,
+        is_natural_ligand: lig.is_natural_ligand,
+      })),
+    };
+    setStatusMessage("Saving session…");
+    void client
+      .sessionSave(payload)
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `pinsilico-session.pinsilico`;
+        document.body.append(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+        setStatusMessage("Session saved.");
+      })
+      .catch((e: unknown) => {
+        setStatusMessage(e instanceof ApiError ? `${e.code}: ${e.message}` : "Save failed.");
+      });
+  };
+
+  // Open a `.pinsilico` bundle. The sidecar parses (it owns the zip
+  // invariants) and returns JSON; we replace the session-store state
+  // wholesale.
+  const onLoadSession = (): void => {
+    if (client === null) {
+      setStatusMessage("Sidecar not connected — can't load session.");
+      return;
+    }
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = ".pinsilico,application/zip";
+    picker.addEventListener("change", () => {
+      const file = picker.files?.[0];
+      if (file === undefined) return;
+      setStatusMessage(`Loading ${file.name}…`);
+      void client
+        .sessionLoad(file)
+        .then((bundle: SessionLoadResponse) => {
+          const store = useSessionStore.getState();
+          store.reset();
+          for (const p of bundle.proteins) {
+            store.addProtein({
+              identifier: p.identifier,
+              source: p.source as "rcsb" | "alphafold" | "upload",
+              role: p.role as "target" | "homolog" | "off_target",
+              pdb_text: p.pdb_text,
+              pockets: p.pockets.map((pk) => ({
+                identifier: pk.identifier,
+                centroid_xyz: pk.centroid_xyz,
+                volume_a3: pk.volume_a3 ?? 0,
+                hydrophobicity: pk.hydrophobicity ?? 0,
+                druggability_score: pk.druggability_score ?? 0,
+                residue_ids: pk.residue_ids ?? [],
+              })),
+            });
+          }
+          for (const lig of bundle.ligands) {
+            store.addLigand({
+              identifier: lig.identifier,
+              source: lig.source as "pubchem" | "chembl" | "drugbank" | "upload",
+              smiles: lig.smiles,
+              is_inhibitor: lig.is_inhibitor,
+              is_natural_ligand: lig.is_natural_ligand,
+            });
+          }
+          setStatusMessage(
+            `Loaded ${bundle.proteins.length} protein(s) and ${bundle.ligands.length} ligand(s).`,
+          );
+        })
+        .catch((e: unknown) => {
+          setStatusMessage(e instanceof ApiError ? `${e.code}: ${e.message}` : "Load failed.");
+        });
+    });
+    picker.click();
+  };
 
   // Run fpocket on a single protein and fold the resulting pockets
   // back into the session store. The button on each protein card
@@ -232,6 +345,8 @@ export function Workspace(): JSX.Element {
         onAddProtein={() => {
           setAddProteinOpen(true);
         }}
+        onSaveSession={onSaveSession}
+        onLoadSession={onLoadSession}
       />
 
       <div style={bodyStyle}>

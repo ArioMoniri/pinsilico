@@ -29,6 +29,10 @@ classifiers = [
 # pins to this list with a one-line comment explaining the phase.
 dependencies = [
   "fastapi>=0.110,<0.116",
+  # python-multipart is required by FastAPI's UploadFile path used by
+  # the session-bundle load route (Phase 10). Pin a range that's
+  # compatible with the fastapi range above.
+  "python-multipart>=0.0.9,<1",
   "uvicorn[standard]>=0.29,<0.32",
   "structlog>=24.1,<25",
   "pydantic>=2.7,<3",
