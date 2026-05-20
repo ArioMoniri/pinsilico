@@ -81,18 +81,25 @@ def load_lock() -> dict[str, Any]:
 def specs_for(platform_key: str, lock: dict[str, Any]) -> list[BinarySpec]:
     """Return the binaries we should fetch on this platform.
 
-    Entries marked ``_unavailable: true`` are skipped — these are
-    OS/arch combos with no upstream binary. The release notes (and
-    docs/releasing.md) document the source-build workaround per
-    binary.
+    Entries marked ``_unavailable: true`` or ``_source_build: true``
+    are skipped — those are OS/arch combos with no upstream binary
+    fetchable as-is. Source builds happen via the build script named
+    in ``_build_script`` (release.yml runs it; dev devs run it
+    manually following docs/releasing.md).
+
+    Entries whose top-level name starts with ``_`` are metadata-only
+    (e.g. ``_ffmpeg_moved_to_pypi`` documents that ffmpeg ships via
+    the imageio-ffmpeg wheel instead).
     """
     out: list[BinarySpec] = []
     for name, entry in lock["binaries"].items():
+        if name.startswith("_"):
+            continue
         plats = entry.get("platforms", {})
         info = plats.get(platform_key)
         if info is None:
             continue
-        if info.get("_unavailable"):
+        if info.get("_unavailable") or info.get("_source_build"):
             continue
         out.append(
             BinarySpec(
@@ -168,14 +175,17 @@ def update_lock(platform_key: str) -> int:
     lock = load_lock()
     failures = 0
     for name, entry in lock["binaries"].items():
+        if name.startswith("_"):
+            continue
         plats = entry.get("platforms", {})
         info = plats.get(platform_key)
         if info is None:
             continue
-        if info.get("_unavailable"):
+        if info.get("_unavailable") or info.get("_source_build"):
+            reason = info.get("_reason", "no reason given")
+            kind = "unavailable" if info.get("_unavailable") else "source-build"
             sys.stderr.write(
-                f"skipping {name} on {platform_key}: marked unavailable "
-                f"({info.get('_reason', 'no reason given')})\n",
+                f"skipping {name} on {platform_key}: {kind} ({reason})\n",
             )
             continue
         url = info["url"]
@@ -209,7 +219,11 @@ def update_lock(platform_key: str) -> int:
 
 
 def verify_only(platform_key: str) -> int:
-    """Walk the lock for the current platform; fail on any missing/wrong file."""
+    """Walk the lock for the current platform; fail on any missing/wrong file.
+
+    Also verifies that source-build entries' resulting binaries are
+    present (the build script must have run already).
+    """
     lock = load_lock()
     specs = specs_for(platform_key, lock)
     missing: list[str] = []
@@ -225,11 +239,31 @@ def verify_only(platform_key: str) -> int:
         got = _sha256_of_file(target)
         if got != spec.sha256:
             mismatched.append(f"{spec.name}: expected {spec.sha256}, got {got}")
+
+    # Source-build binaries: just check the artefact exists.
+    source_build_checked: list[str] = []
+    for name, entry in lock["binaries"].items():
+        if name.startswith("_"):
+            continue
+        plats = entry.get("platforms", {})
+        info = plats.get(platform_key)
+        if info is None or not info.get("_source_build"):
+            continue
+        target = DEST_DIR / name
+        if not target.exists():
+            missing.append(
+                f"{name}: source-build expected but {target} is missing. "
+                f"Run {info.get('_build_script', 'the build script')} before --verify.",
+            )
+        else:
+            source_build_checked.append(name)
+
     if missing or mismatched:
         for line in missing + mismatched:
             sys.stderr.write(f"  FAIL  {line}\n")
         return 1
-    sys.stdout.write(f"ok — all {len(specs)} binaries verified for {platform_key}\n")
+    total = len(specs) + len(source_build_checked)
+    sys.stdout.write(f"ok — all {total} binaries verified for {platform_key}\n")
     return 0
 
 

@@ -40,6 +40,11 @@ dependencies = [
   "httpx>=0.27,<0.29",
   "requests>=2.32,<3",
   "requests-cache>=1.2,<2",
+  # Phase 12 — bundled native binaries via PyPI wheels (cross-platform).
+  # imageio-ffmpeg ships pre-built ffmpeg for Linux/macOS-intel/macOS-arm64/
+  # Windows in a single wheel; replaces the per-platform ffmpeg entries
+  # that used to live in scripts/binaries.lock.json.
+  "imageio-ffmpeg>=0.5,<1",
 ]
 
 [project.optional-dependencies]
@@ -146,6 +151,11 @@ follow_imports = "skip"
 module = ["rdkit", "rdkit.*"]
 ignore_missing_imports = true
 follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+# imageio-ffmpeg has no type stubs.
+module = ["imageio_ffmpeg", "imageio_ffmpeg.*"]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 # Modules that import the above need to relax disallow_untyped_calls,

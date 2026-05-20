@@ -2,25 +2,9 @@
   "$schema_version": 1,
   "_comment": "SHA256 lock for every native binary the installer ships. fetch_binaries.py refuses to proceed on a mismatch. Run scripts/fetch_binaries.py --update once after upstream releases bump versions to repopulate this file.",
   "binaries": {
-    "ffmpeg": {
-      "platforms": {
-        "linux-x86_64": {
-          "_pending": "Populated against real release.",
-          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-          "url": "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
-        },
-        "macos-arm64": {
-          "_pending": "upstream fetch failed (URLError: <urlopen error [Errno 60] Operation timed out>). If this OS/arch combo isn't available upstream, mark it `_unavailable: true` here and bundle a source-build fallback (see docs/releasing.md).",
-          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-          "url": "https://evermeet.cx/ffmpeg/getrelease/zip"
-        },
-        "windows-x86_64": {
-          "_pending": "See above.",
-          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-          "url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
-        }
-      },
-      "version": "7.0"
+    "_ffmpeg_moved_to_pypi": {
+      "_replaced_by": "imageio-ffmpeg PyPI wheel (sidecar/pyproject.toml)",
+      "_reason": "imageio-ffmpeg ships pre-built ffmpeg binaries for Linux, macOS Intel, macOS arm64, and Windows in a single wheel. Removes per-OS lockfile maintenance and avoids the URL-rot risk we hit on first --update (evermeet.cx and gyan.dev both timed out). Access via pinsilico.io.media.ffmpeg_exe()."
     },
     "fpocket": {
       "platforms": {
@@ -78,8 +62,9 @@
           "url": "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.5/vina_1.2.5_linux_x86_64"
         },
         "macos-arm64": {
-          "_reason": "AutoDock Vina v1.2.5 has no native macOS arm64 binary in its GitHub release. Build from source on the host instead: clone https://github.com/ccsb-scripps/AutoDock-Vina at tag v1.2.5 and `cd build/mac && make`. The packaging script falls back to Rosetta-running the x86_64 build during dev; v1 release notes will document this explicitly.",
-          "_unavailable": true
+          "_source_build": true,
+          "_reason": "AutoDock Vina v1.2.5 has no native macOS arm64 binary in its GitHub release. Build with scripts/build_vina_from_source.sh (~30 s; requires `brew install boost swig`). release.yml runs this automatically on the macos-14 matrix job before tauri build.",
+          "_build_script": "scripts/build_vina_from_source.sh"
         },
         "windows-x86_64": {
           "_pending": "Run `python scripts/fetch_binaries.py --update` to populate.",

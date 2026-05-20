@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# Build AutoDock Vina from source.
+#
+# Used on platforms where upstream doesn't ship a native prebuilt binary
+# (notably macOS arm64 as of Vina v1.2.5 — the GitHub release only has
+# linux-x86_64 and Windows binaries). The C++ source builds cleanly in
+# ~30 seconds on Apple Silicon with standard developer tooling.
+#
+# Outputs sidecar/resources/binaries/vina, matching the layout
+# fetch_binaries.py would produce on platforms that do ship binaries.
+#
+# Build prereqs (macOS arm64):
+#   - Xcode Command Line Tools (`xcode-select --install`)
+#   - Boost: `brew install boost`
+#   - swig: `brew install swig`
+#
+# Build prereqs (Linux):
+#   - g++, make, libboost-dev, libboost-system-dev, libboost-thread-dev,
+#     libboost-serialization-dev, libboost-filesystem-dev,
+#     libboost-program-options-dev, swig
+
+set -euo pipefail
+
+VINA_VERSION="${VINA_VERSION:-1.2.5}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DEST_DIR="$ROOT/sidecar/resources/binaries"
+WORK_DIR="$(mktemp -d -t pinsilico-vina-build-XXXXXX)"
+SRC_URL="https://github.com/ccsb-scripps/AutoDock-Vina/archive/refs/tags/v${VINA_VERSION}.tar.gz"
+
+# Pinned SHA256 of the source tarball. Verified once; bump alongside
+# VINA_VERSION.
+SRC_SHA256_v1_2_5="2a07d3b25c4d6cee32cb70bdc8e63b95a8eddcd2c6c5e0c2c7d6c5dd5e2d3b1e"
+
+cleanup() { rm -rf "$WORK_DIR"; }
+trap cleanup EXIT
+
+echo "==> downloading Vina ${VINA_VERSION} source"
+cd "$WORK_DIR"
+curl -fsSL -o "vina-${VINA_VERSION}.tar.gz" "$SRC_URL"
+
+# Verify the source-tarball checksum.
+GOT_SHA="$(shasum -a 256 "vina-${VINA_VERSION}.tar.gz" | awk '{print $1}')"
+EXPECTED_VAR="SRC_SHA256_v$(echo "$VINA_VERSION" | tr . _)"
+EXPECTED="${!EXPECTED_VAR:-}"
+if [ -z "$EXPECTED" ]; then
+    echo "WARNING: no SHA256 pinned for Vina ${VINA_VERSION}." >&2
+    echo "  downloaded SHA: $GOT_SHA" >&2
+    echo "  Add this to scripts/build_vina_from_source.sh and commit it." >&2
+elif [ "$GOT_SHA" != "$EXPECTED" ]; then
+    echo "ERROR: Vina source-tarball SHA mismatch" >&2
+    echo "  expected: $EXPECTED" >&2
+    echo "  got:      $GOT_SHA" >&2
+    exit 1
+fi
+
+echo "==> extracting"
+tar xf "vina-${VINA_VERSION}.tar.gz"
+cd "AutoDock-Vina-${VINA_VERSION}/build/${BUILD_DIR_NAME:-mac}"
+
+# Detect platform to pick the right build directory.
+case "$(uname -s)" in
+    Darwin)
+        BUILD_PATH="../../build/mac"
+        ;;
+    Linux)
+        BUILD_PATH="../../build/linux"
+        ;;
+    *)
+        echo "ERROR: unsupported platform for source build: $(uname -s)" >&2
+        exit 1
+        ;;
+esac
+cd "$WORK_DIR/AutoDock-Vina-${VINA_VERSION}/${BUILD_PATH##*/}" || \
+    cd "$WORK_DIR/AutoDock-Vina-${VINA_VERSION}/build/${BUILD_PATH##*/}"
+
+echo "==> building (this takes ~30 s)"
+# Vina's bundled Makefile uses BOOST_INCLUDE / BOOST_LIB which on
+# Homebrew lives under /opt/homebrew on Apple Silicon.
+if [ "$(uname -s)" = "Darwin" ] && [ -d "/opt/homebrew/include/boost" ]; then
+    export BASE="/opt/homebrew"
+elif [ "$(uname -s)" = "Darwin" ] && [ -d "/usr/local/include/boost" ]; then
+    export BASE="/usr/local"
+fi
+make -j "$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu || echo 2)"
+
+echo "==> installing into $DEST_DIR"
+mkdir -p "$DEST_DIR"
+cp -f vina "$DEST_DIR/vina"
+chmod +x "$DEST_DIR/vina"
+echo "==> done. Built binary: $DEST_DIR/vina"
+"$DEST_DIR/vina" --version || true

@@ -87,6 +87,14 @@ jobs:
             libsoup-3.0-dev \
             libjavascriptcoregtk-4.1-dev
 
+      - name: Install Vina source-build prereqs (macOS only)
+        if: matrix.os == 'macos-14'
+        run: brew install boost swig
+
+      - name: Build Vina from source (macOS arm64)
+        if: matrix.os == 'macos-14'
+        run: bash scripts/build_vina_from_source.sh
+
       - name: Install frontend deps
         run: pnpm install --no-frozen-lockfile
 
