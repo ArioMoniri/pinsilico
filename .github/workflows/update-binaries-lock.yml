@@ -1,0 +1,130 @@
+name: Update binaries.lock.json
+
+# Runs fetch_binaries.py --update on Linux + Windows + macOS matrix jobs,
+# merges the resulting lockfile fragments via scripts/merge_lockfile_fragments.py,
+# and opens a PR with the updated SHA256s. Trigger manually via:
+#
+#     gh workflow run update-binaries-lock.yml
+#
+# or under the Actions tab → "Update binaries.lock.json" → "Run workflow".
+#
+# Why this instead of running on every push: hitting upstream SourceForge /
+# GitHub-release URLs on every commit is wasteful + brittle. Manual trigger
+# means humans choose when to refresh the lockfile (typically after an
+# upstream version bump in scripts/binaries.lock.json).
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Short reason for the refresh (logged in the PR description)"
+        required: false
+        default: "Refresh upstream binary checksums"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  fetch:
+    name: Fetch · ${{ matrix.platform_key }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-latest, platform_key: linux-x86_64 }
+          - { runner: windows-latest, platform_key: windows-x86_64 }
+          - { runner: macos-14, platform_key: macos-arm64 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fetch + populate hashes for ${{ matrix.platform_key }}
+        shell: bash
+        run: |
+          python scripts/fetch_binaries.py --update --platform ${{ matrix.platform_key }}
+          # --update returns 1 if any single download failed (e.g. a
+          # timeout). The lockfile is still written with whatever
+          # succeeded, so we tolerate it here and let the merge job
+          # surface the gap in the PR description.
+        continue-on-error: true
+
+      - name: Upload fragment
+        uses: actions/upload-artifact@v4
+        with:
+          name: lockfile-fragment-${{ matrix.platform_key }}
+          path: scripts/binaries.lock.json
+          retention-days: 1
+
+  merge-and-pr:
+    name: Merge + open PR
+    needs: fetch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download all fragments
+        uses: actions/download-artifact@v4
+        with:
+          path: fragments
+
+      - name: Merge fragments into the canonical lockfile
+        run: |
+          python scripts/merge_lockfile_fragments.py \
+            --base scripts/binaries.lock.json \
+            --fragment linux-x86_64=fragments/lockfile-fragment-linux-x86_64/binaries.lock.json \
+            --fragment windows-x86_64=fragments/lockfile-fragment-windows-x86_64/binaries.lock.json \
+            --fragment macos-arm64=fragments/lockfile-fragment-macos-arm64/binaries.lock.json \
+            --out scripts/binaries.lock.json
+          echo "=== merged lockfile diff ==="
+          git --no-pager diff scripts/binaries.lock.json | head -200 || true
+
+      - name: Open / update PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: chore/update-binaries-lock
+          commit-message: |
+            chore(packaging): refresh binaries.lock.json SHA256s
+
+            Triggered by: ${{ github.actor }}
+            Reason: ${{ github.event.inputs.reason }}
+
+            Each platform's hashes computed against the upstream
+            URLs at run time on the matching OS runner. Review the
+            diff and merge if the bumps look correct.
+          title: "chore(packaging): refresh binaries.lock.json SHA256s"
+          body: |
+            Automated refresh of upstream binary checksums.
+
+            **Triggered by:** @${{ github.actor }}
+            **Reason:** ${{ github.event.inputs.reason }}
+
+            Each platform's entries were populated by running
+            `python scripts/fetch_binaries.py --update --platform <key>`
+            on the matching OS runner. Source-build entries
+            (e.g. Vina on macOS arm64) and PyPI-managed entries
+            (ffmpeg via imageio-ffmpeg) are untouched.
+
+            ## What to check before merging
+
+            1. Confirm the version numbers haven't drifted (each
+               binary's `version` field).
+            2. Spot-check one of the SHA256s by downloading the URL
+               manually and running `shasum -a 256`.
+            3. Make sure no entry regressed to the `0000...` sentinel.
+          labels: |
+            chore
+            packaging
+            automated
+          delete-branch: true

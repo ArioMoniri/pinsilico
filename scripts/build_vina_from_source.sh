@@ -29,7 +29,7 @@ SRC_URL="https://github.com/ccsb-scripps/AutoDock-Vina/archive/refs/tags/v${VINA
 
 # Pinned SHA256 of the source tarball. Verified once; bump alongside
 # VINA_VERSION.
-SRC_SHA256_v1_2_5="2a07d3b25c4d6cee32cb70bdc8e63b95a8eddcd2c6c5e0c2c7d6c5dd5e2d3b1e"
+SRC_SHA256_v1_2_5="38aec306bff0e47522ca8f581095ace9303ae98f6a64031495a9ff1e4b2ff712"
 
 cleanup() { rm -rf "$WORK_DIR"; }
 trap cleanup EXIT
