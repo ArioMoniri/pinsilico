@@ -226,6 +226,25 @@ jobs:
             libsoup-3.0-dev \
             libjavascriptcoregtk-4.1-dev
 
+      - name: Placeholder sidecar binary (so Tauri build script passes)
+        shell: bash
+        # tauri.conf.json declares `externalBin: binaries/pinsilico-sidecar`,
+        # which causes the tauri-build crate to refuse to compile unless the
+        # per-platform binary exists at build time. The rust smoke tests
+        # don't actually exec the sidecar — they cover pure helpers in
+        # lib.rs and sidecar.rs — so a zero-byte placeholder is enough.
+        # release.yml builds the real PyInstaller binary instead.
+        run: |
+          mkdir -p app/src-tauri/binaries
+          case "${{ matrix.os }}" in
+            ubuntu-latest)  triple="x86_64-unknown-linux-gnu" ; ext="" ;;
+            macos-14)       triple="aarch64-apple-darwin"      ; ext="" ;;
+            windows-latest) triple="x86_64-pc-windows-msvc"    ; ext=".exe" ;;
+          esac
+          touch "app/src-tauri/binaries/pinsilico-sidecar-${triple}${ext}"
+          chmod +x "app/src-tauri/binaries/pinsilico-sidecar-${triple}${ext}" || true
+          ls -la app/src-tauri/binaries/
+
       - name: cargo test --all-targets
         working-directory: app/src-tauri
         run: cargo test --all-targets

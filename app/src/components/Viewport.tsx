@@ -35,10 +35,10 @@ export function Viewport({ positions, bound }: ViewportProps): JSX.Element {
             No proteins loaded
           </h2>
           <p style={{ color: "#8b9097", lineHeight: 1.55 }}>
-            Click <strong style={{ color: "#e6e9ef" }}>+ Add protein</strong> in the toolbar to
-            load a PDB ID from RCSB, fetch a predicted structure from AlphaFold, or upload a local
-            PDB file. The 3D viewport renders the protein in the abstract <em>Arena</em> view (R3F)
-            or the atomistic <em>Mol*</em> view, switchable from the toolbar.
+            Click <strong style={{ color: "#e6e9ef" }}>+ Add protein</strong> in the toolbar to load
+            a PDB ID from RCSB, fetch a predicted structure from AlphaFold, or upload a local PDB
+            file. The 3D viewport renders the protein in the abstract <em>Arena</em> view (R3F) or
+            the atomistic <em>Mol*</em> view, switchable from the toolbar.
           </p>
         </div>
       </div>
@@ -48,10 +48,7 @@ export function Viewport({ positions, bound }: ViewportProps): JSX.Element {
   if (view === "arena") {
     return (
       <div style={canvasContainerStyle}>
-        <Arena
-          positions={positions ?? new Float32Array(0)}
-          bound={bound}
-        />
+        <Arena positions={positions ?? new Float32Array(0)} bound={bound} />
       </div>
     );
   }
@@ -68,9 +65,7 @@ export function Viewport({ positions, bound }: ViewportProps): JSX.Element {
   return (
     <div style={canvasContainerStyle}>
       <Suspense
-        fallback={
-          <div style={{ ...emptyStyle, color: "#8b9097" }}>Loading atomistic viewer…</div>
-        }
+        fallback={<div style={{ ...emptyStyle, color: "#8b9097" }}>Loading atomistic viewer…</div>}
       >
         <MolstarViewer pdbText={activeProtein.pdb_text} />
       </Suspense>

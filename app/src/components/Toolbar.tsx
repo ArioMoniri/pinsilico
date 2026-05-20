@@ -17,7 +17,11 @@ interface ToolbarProps {
  * Hosts the product title, the arena ↔ atomistic view switcher, the
  * sidecar connection pill, and the "Add protein" entry point.
  */
-export function Toolbar({ sidecarStatus, sidecarVersion, onAddProtein }: ToolbarProps): JSX.Element {
+export function Toolbar({
+  sidecarStatus,
+  sidecarVersion,
+  onAddProtein,
+}: ToolbarProps): JSX.Element {
   const view = useSceneStore((s) => s.view);
   const setView = useSceneStore((s) => s.setView);
 
@@ -63,7 +67,12 @@ function SidecarPill({
 }): JSX.Element {
   const palette = {
     connecting: { bg: "#3d3a17", border: "#6e6a30", text: "#f0d97b", label: "Connecting…" },
-    ready: { bg: "#1b3a26", border: "#2e6e44", text: "#7bd99c", label: `Sidecar v${version ?? "?"}` },
+    ready: {
+      bg: "#1b3a26",
+      border: "#2e6e44",
+      text: "#7bd99c",
+      label: `Sidecar v${version ?? "?"}`,
+    },
     error: { bg: "#3b1c1c", border: "#7a3535", text: "#f0a0a0", label: "Sidecar offline" },
   }[status];
   return (

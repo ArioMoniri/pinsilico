@@ -123,9 +123,7 @@ export function Workspace(): JSX.Element {
         );
       })
       .catch((e: unknown) => {
-        setStatusMessage(
-          e instanceof ApiError ? `${e.code}: ${e.message}` : "Simulation failed.",
-        );
+        setStatusMessage(e instanceof ApiError ? `${e.code}: ${e.message}` : "Simulation failed.");
       });
   };
 

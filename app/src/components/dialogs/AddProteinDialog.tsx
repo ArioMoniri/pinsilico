@@ -198,7 +198,11 @@ export function AddProteinDialog({
                   }}
                   placeholder="Paste the contents of a .pdb file"
                   rows={8}
-                  style={{ ...inputStyle, fontFamily: "ui-monospace, monospace", resize: "vertical" }}
+                  style={{
+                    ...inputStyle,
+                    fontFamily: "ui-monospace, monospace",
+                    resize: "vertical",
+                  }}
                   aria-label="PDB text"
                 />
               </label>
@@ -212,7 +216,14 @@ export function AddProteinDialog({
           </p>
         )}
 
-        <footer style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.75rem" }}>
+        <footer
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "0.5rem",
+            marginTop: "0.75rem",
+          }}
+        >
           <button type="button" onClick={close} style={secondaryButtonStyle}>
             Cancel
           </button>

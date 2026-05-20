@@ -30,9 +30,7 @@ export function StatusBar({ message }: StatusBarProps): JSX.Element {
           ? "No active protein"
           : `Active: ${activeProtein}${activePocket ? ` · pocket ${activePocket}` : ""}`}
       </span>
-      <span style={{ color: "#8b9097", justifySelf: "end" }}>
-        {message ?? "Ready"}
-      </span>
+      <span style={{ color: "#8b9097", justifySelf: "end" }}>{message ?? "Ready"}</span>
     </footer>
   );
 }
