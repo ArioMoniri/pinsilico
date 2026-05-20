@@ -55,25 +55,37 @@ fi
 
 echo "==> extracting"
 tar xf "vina-${VINA_VERSION}.tar.gz"
-cd "AutoDock-Vina-${VINA_VERSION}/build/${BUILD_DIR_NAME:-mac}"
 
-# Detect platform to pick the right build directory.
+# Pick the right build directory. The Vina v1.2.5 source tree has
+# Makefiles at build/<os>/release/Makefile (verified locally against
+# the v1.2.5 tarball; do NOT use build/<os>/Makefile — that path
+# doesn't exist).
 case "$(uname -s)" in
     Darwin)
-        BUILD_PATH="../../build/mac"
+        BUILD_DIR="AutoDock-Vina-${VINA_VERSION}/build/mac/release"
         ;;
     Linux)
-        BUILD_PATH="../../build/linux"
+        BUILD_DIR="AutoDock-Vina-${VINA_VERSION}/build/linux/release"
         ;;
     *)
         echo "ERROR: unsupported platform for source build: $(uname -s)" >&2
         exit 1
         ;;
 esac
-cd "$WORK_DIR/AutoDock-Vina-${VINA_VERSION}/${BUILD_PATH##*/}" || \
-    cd "$WORK_DIR/AutoDock-Vina-${VINA_VERSION}/build/${BUILD_PATH##*/}"
 
-echo "==> building (this takes ~30 s)"
+if [ ! -d "$BUILD_DIR" ]; then
+    echo "ERROR: expected build directory not found: $BUILD_DIR" >&2
+    echo "       Vina source layout may have changed; update this script." >&2
+    exit 1
+fi
+cd "$BUILD_DIR"
+
+if [ ! -f Makefile ]; then
+    echo "ERROR: no Makefile in $BUILD_DIR — Vina source layout may have changed." >&2
+    exit 1
+fi
+
+echo "==> building in $BUILD_DIR (this takes ~30 s)"
 # Vina's bundled Makefile uses BOOST_INCLUDE / BOOST_LIB which on
 # Homebrew lives under /opt/homebrew on Apple Silicon.
 if [ "$(uname -s)" = "Darwin" ] && [ -d "/opt/homebrew/include/boost" ]; then
