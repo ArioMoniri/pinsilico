@@ -12,6 +12,8 @@ interface ToolbarProps {
   onSaveSession: () => void;
   onLoadSession: () => void;
   onOpenSettings: () => void;
+  onOpenFixer: () => void;
+  onLoadExampleKit: () => void;
 }
 
 /**
@@ -27,6 +29,8 @@ export function Toolbar({
   onSaveSession,
   onLoadSession,
   onOpenSettings,
+  onOpenFixer,
+  onLoadExampleKit,
 }: ToolbarProps): JSX.Element {
   const view = useSceneStore((s) => s.view);
   const setView = useSceneStore((s) => s.setView);
@@ -55,7 +59,19 @@ export function Toolbar({
       </nav>
 
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        <SidecarPill status={sidecarStatus} version={sidecarVersion} />
+        {sidecarStatus === "error" ? (
+          <SidecarPill status={sidecarStatus} version={sidecarVersion} onClick={onOpenFixer} />
+        ) : (
+          <SidecarPill status={sidecarStatus} version={sidecarVersion} />
+        )}
+        <button
+          type="button"
+          onClick={onLoadExampleKit}
+          style={secondaryButtonStyle}
+          title="Drop a small known-good protein + ligands into the workspace"
+        >
+          Example
+        </button>
         <button
           type="button"
           onClick={onLoadSession}
@@ -92,9 +108,11 @@ export function Toolbar({
 function SidecarPill({
   status,
   version,
+  onClick,
 }: {
   status: SidecarStatus;
   version: string | null;
+  onClick?: () => void;
 }): JSX.Element {
   const palette = {
     connecting: { bg: "#3d3a17", border: "#6e6a30", text: "#f0d97b", label: "Connecting…" },
@@ -104,22 +122,37 @@ function SidecarPill({
       text: "#7bd99c",
       label: `Sidecar v${version ?? "?"}`,
     },
-    error: { bg: "#3b1c1c", border: "#7a3535", text: "#f0a0a0", label: "Sidecar offline" },
+    error: {
+      bg: "#3b1c1c",
+      border: "#7a3535",
+      text: "#f0a0a0",
+      label: "Sidecar offline — click to fix",
+    },
   }[status];
+  const baseStyle: React.CSSProperties = {
+    background: palette.bg,
+    border: `1px solid ${palette.border}`,
+    color: palette.text,
+    padding: "0.2rem 0.6rem",
+    borderRadius: 999,
+    fontSize: "0.78rem",
+    fontFamily: "ui-monospace, monospace",
+    cursor: onClick !== undefined ? "pointer" : "default",
+  };
+  if (onClick !== undefined) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={`Sidecar ${status} — open fixer`}
+        style={baseStyle}
+      >
+        ● {palette.label}
+      </button>
+    );
+  }
   return (
-    <span
-      role="status"
-      aria-label={`Sidecar ${status}`}
-      style={{
-        background: palette.bg,
-        border: `1px solid ${palette.border}`,
-        color: palette.text,
-        padding: "0.2rem 0.6rem",
-        borderRadius: 999,
-        fontSize: "0.78rem",
-        fontFamily: "ui-monospace, monospace",
-      }}
-    >
+    <span role="status" aria-label={`Sidecar ${status}`} style={baseStyle}>
       ● {palette.label}
     </span>
   );

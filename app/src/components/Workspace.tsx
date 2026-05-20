@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 
 import {
   ApiError,
@@ -7,6 +7,7 @@ import {
   type SessionLoadResponse,
 } from "../lib/api";
 import { awaitSidecarReady } from "../lib/tauri";
+import { buildExampleKit } from "../lib/example_kit";
 import { useSessionStore } from "../stores/session";
 import { ProteinPanel } from "./panels/ProteinPanel";
 import { LigandPanel } from "./panels/LigandPanel";
@@ -17,6 +18,7 @@ import { Viewport } from "./Viewport";
 import { AddProteinDialog } from "./dialogs/AddProteinDialog";
 import { AddLigandDialog } from "./dialogs/AddLigandDialog";
 import { DockingDialog } from "./dialogs/DockingDialog";
+import { FixerDialog } from "./dialogs/FixerDialog";
 import { SettingsDialog } from "./dialogs/SettingsDialog";
 
 /**
@@ -53,45 +55,65 @@ export function Workspace(): JSX.Element {
   const [addLigandOpen, setAddLigandOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dockingOpen, setDockingOpen] = useState(false);
+  const [fixerOpen, setFixerOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [, setLastResult] = useState<FastForwardResponse | null>(null);
   const [detectingProteinId, setDetectingProteinId] = useState<string | null>(null);
   const [trajectoryPositions, setTrajectoryPositions] = useState<Float32Array | null>(null);
   const [trajectoryBound, setTrajectoryBound] = useState<boolean[]>([]);
 
-  // Initial sidecar handshake. Re-runs only if dependencies change
-  // (which they don't here — this is mount-once). A successful IPC
-  // handshake is itself proof the sidecar process is alive, the
-  // banner was fully parsed, and the API base + token are valid —
-  // we don't run a separate /health HTTP probe here because that
-  // round-trip is subject to webview CORS / macOS ATS rules that can
-  // fail-closed even when the sidecar is healthy. Real API calls
-  // (e.g. /db/rcsb in AddProteinDialog) surface fetch failures
-  // inline with the action that triggered them.
+  // Sidecar handshake — runs at mount and is also called by the
+  // FixerDialog's Retry button. A successful IPC handshake is itself
+  // proof the sidecar process is alive, the banner was fully parsed,
+  // and the API base + token are valid — we don't run a separate
+  // /health HTTP probe here because that round-trip is subject to
+  // webview CORS / macOS ATS rules that can fail-closed even when the
+  // sidecar is healthy. Real API calls (e.g. /db/rcsb in
+  // AddProteinDialog) surface fetch failures inline with the action
+  // that triggered them.
+  const runHandshake = useCallback(async (): Promise<boolean> => {
+    setSidecarStatus("connecting");
+    setStatusMessage("Connecting to sidecar…");
+    const discovery = await awaitSidecarReady();
+    if (discovery === null) {
+      setSidecarStatus("error");
+      setStatusMessage("Sidecar did not respond. Run `python scripts/build_sidecar.py` if dev.");
+      return false;
+    }
+    setConnection(discovery.apiBase, discovery.token);
+    setSidecarVersion(discovery.version);
+    setSidecarStatus("ready");
+    setStatusMessage("Connected.");
+    return true;
+  }, [setConnection]);
+
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      const discovery = await awaitSidecarReady();
+    void runHandshake().then(() => {
       if (cancelled) return;
-      if (discovery === null) {
-        setSidecarStatus("error");
-        setStatusMessage("Sidecar did not respond. Run `python scripts/build_sidecar.py` if dev.");
-        return;
-      }
-      setConnection(discovery.apiBase, discovery.token);
-      setSidecarVersion(discovery.version);
-      setSidecarStatus("ready");
-      setStatusMessage("Connected.");
-    })();
+    });
     return () => {
       cancelled = true;
     };
-  }, [setConnection]);
+  }, [runHandshake]);
 
   const client = useMemo<PinsilicoClient | null>(() => {
     if (apiBase === null || token === null) return null;
     return new PinsilicoClient({ apiBase, token });
   }, [apiBase, token]);
+
+  // Drop a small known-good protein + a few ligands into the session
+  // store. The example kit is fully client-side (the PDB and SMILES
+  // are bundled in `lib/example_kit.ts`) so it works even with the
+  // sidecar offline — useful when the user wants to verify the UI
+  // before troubleshooting the backend.
+  const onLoadExampleKit = (): void => {
+    const kit = buildExampleKit();
+    const store = useSessionStore.getState();
+    for (const p of kit.proteins) store.addProtein(p);
+    for (const lig of kit.ligands) store.addLigand(lig);
+    setStatusMessage(kit.blurb);
+  };
 
   // Save the workspace to a deterministic `.pinsilico` bundle. The
   // sidecar serialises (it owns the zip-layout invariants) and returns
@@ -356,6 +378,10 @@ export function Workspace(): JSX.Element {
         onOpenSettings={() => {
           setSettingsOpen(true);
         }}
+        onOpenFixer={() => {
+          setFixerOpen(true);
+        }}
+        onLoadExampleKit={onLoadExampleKit}
       />
 
       <div style={bodyStyle}>
@@ -397,6 +423,15 @@ export function Workspace(): JSX.Element {
         onLoaded={(entry) => {
           setStatusMessage(`Loaded ${entry.identifier}.`);
         }}
+      />
+
+      <FixerDialog
+        open={fixerOpen}
+        onClose={() => {
+          setFixerOpen(false);
+        }}
+        lastError={sidecarStatus === "error" ? statusMessage : null}
+        onRetry={runHandshake}
       />
 
       <DockingDialog
