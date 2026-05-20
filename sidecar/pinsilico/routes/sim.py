@@ -214,9 +214,9 @@ def sim_stream(req: Annotated[SimRunRequest, Body()]) -> StreamingResponse:
                 ],
                 "bound": [p.bound_site_id is not None for p in sim.particles],
             }
-            yield f"event: frame\ndata: {json.dumps(payload)}\n\n".encode("utf-8")
+            yield f"event: frame\ndata: {json.dumps(payload)}\n\n".encode()
         done = {"frames_executed": req.n_frames}
-        yield f"event: done\ndata: {json.dumps(done)}\n\n".encode("utf-8")
+        yield f"event: done\ndata: {json.dumps(done)}\n\n".encode()
 
     return StreamingResponse(
         _events(),

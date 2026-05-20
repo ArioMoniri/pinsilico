@@ -15,7 +15,9 @@ helpers are patched to point at fixture files.
 
 from __future__ import annotations
 
+import os
 import re
+import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,16 +42,13 @@ def _resolve_obabel() -> str:
     Raises :class:`DockingError` if none of the candidates exist; the
     route layer converts that to a user-facing 422.
     """
-    import os
-    import shutil as _shutil
-
     env = os.environ.get("OBABEL_BIN")
     if env and Path(env).exists():
         return env
     bundled = Path(__file__).resolve().parents[2] / "resources" / "binaries" / "obabel"
     if bundled.exists():
         return str(bundled)
-    on_path = _shutil.which("obabel")
+    on_path = shutil.which("obabel")
     if on_path is not None:
         return on_path
     msg = (

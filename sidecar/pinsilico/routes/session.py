@@ -159,7 +159,10 @@ async def load_session(
                 detail=f"Could not parse bundle: {exc}",
             ) from exc
     finally:
-        tmp_path.unlink(missing_ok=True)
+        # ASYNC240 — Path.unlink is fine here because cleanup is best-effort
+        # and the temp file is local; switching to anyio just to satisfy the
+        # lint would add a dep for no real-world benefit.
+        tmp_path.unlink(missing_ok=True)  # noqa: ASYNC240
 
     return LoadSessionResponse(
         version=bundle.version,

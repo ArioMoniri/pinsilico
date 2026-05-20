@@ -62,9 +62,7 @@ def _resolve_engine_binary(engine: EngineName) -> str:
     env_path = os.environ.get(env_var)
     if env_path and Path(env_path).exists():
         return env_path
-    bundled = (
-        Path(__file__).resolve().parents[2] / "resources" / "binaries" / engine
-    )
+    bundled = Path(__file__).resolve().parents[2] / "resources" / "binaries" / engine
     if bundled.exists():
         return str(bundled)
     on_path = shutil.which(engine)
