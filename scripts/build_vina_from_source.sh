@@ -86,14 +86,16 @@ if [ ! -f Makefile ]; then
 fi
 
 echo "==> building in $BUILD_DIR (this takes ~30 s)"
-# Vina's bundled Makefile uses BOOST_INCLUDE / BOOST_LIB which on
-# Homebrew lives under /opt/homebrew on Apple Silicon.
+# Vina's bundled Makefile pins `BASE=/usr/local` with `=` (not `?=`), so an
+# exported env var is ignored — `BASE=` must be passed on the make command
+# line to override. On Apple Silicon, Homebrew lives under /opt/homebrew.
+MAKE_BASE=""
 if [ "$(uname -s)" = "Darwin" ] && [ -d "/opt/homebrew/include/boost" ]; then
-    export BASE="/opt/homebrew"
+    MAKE_BASE="BASE=/opt/homebrew"
 elif [ "$(uname -s)" = "Darwin" ] && [ -d "/usr/local/include/boost" ]; then
-    export BASE="/usr/local"
+    MAKE_BASE="BASE=/usr/local"
 fi
-make -j "$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu || echo 2)"
+make $MAKE_BASE -j "$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu || echo 2)"
 
 echo "==> installing into $DEST_DIR"
 mkdir -p "$DEST_DIR"
