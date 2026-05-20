@@ -43,7 +43,7 @@ class TestHealthEndpoint:
         ``status`` or ``version``.
         """
         body = client.get("/health").json()
-        assert body == {"status": "ok", "version": "0.0.1"}
+        assert body == {"status": "ok", "version": pinsilico.__version__}
 
     def test_status_field_is_ok_string(self, client: TestClient) -> None:
         body = client.get("/health").json()
