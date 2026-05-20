@@ -10,7 +10,7 @@ readme = { file = "../README.md", content-type = "text/markdown" }
 license = { file = "../LICENSE" }
 requires-python = ">=3.11,<3.12"
 authors = [
-  { name = "Ario Moniri", email = "moniriario@gmail.com" },
+  { name = "Ariorad Moniri", email = "moniriario@gmail.com" },
 ]
 keywords = ["docking", "pocket-detection", "fpocket", "smina", "vina", "brownian-dynamics", "drug-discovery"]
 classifiers = [

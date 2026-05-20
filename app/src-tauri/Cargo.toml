@@ -2,7 +2,7 @@
 name = "pinsilico-app"
 version = "0.0.1"
 description = "PInSilico Tauri 2.x desktop shell."
-authors = ["Ario Moniri <moniriario@gmail.com>"]
+authors = ["Ariorad Moniri <moniriario@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/ArioMoniri/pinsilico"
 edition = "2021"

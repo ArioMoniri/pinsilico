@@ -1,0 +1,145 @@
+name: Auto-release
+
+# When CI passes on `main` AND a version bump landed in this commit,
+# automatically create + push the matching `v<version>` tag. The tag
+# push then triggers `release.yml` which builds, signs, notarises,
+# and publishes the GitHub Release with the auto-updater manifest.
+#
+# Safety rails (any one is enough to skip a release):
+#   - CI must conclude `success` for the head SHA
+#   - The six version-source files must agree (Cargo / tauri.conf /
+#     package.json / pyproject / version.ts / __init__.py)
+#   - A tag with that version must not already exist (locally OR remote)
+#   - The commit message can opt-out with [no-release] or [skip-release]
+#   - Only fires on `main` — feature branches never auto-tag
+#
+# To force-skip a single commit: include `[no-release]` in the commit
+# message.
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write    # required to push the new tag
+
+jobs:
+  tag-if-bumped:
+    name: Tag if version bumped and CI green
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Land at the exact commit CI just ran against, with full
+          # history so we can inspect the previous version + tag list.
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          # Required for `git push` of the tag using the workflow's
+          # GITHUB_TOKEN, which the actions/checkout step wires into
+          # the git config automatically.
+          persist-credentials: true
+
+      - name: Set up Python (for version parsing + sync check)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Extract version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(python -c "
+          import re, pathlib
+          text = pathlib.Path('sidecar/pyproject.toml').read_text('utf-8')
+          m = re.search(r'^version\s*=\s*\"([^\"]+)\"', text, re.MULTILINE)
+          print(m.group(1))
+          ")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "::notice::detected pyproject version $VERSION"
+
+      - name: Skip if commit opts out
+        id: optout
+        run: |
+          MSG=$(git log -1 --pretty=%B "${{ github.event.workflow_run.head_sha }}")
+          if echo "$MSG" | grep -qE '\[(no-release|skip-release)\]'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::commit message opts out of auto-release"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip if tag already exists
+        id: tagcheck
+        if: steps.optout.outputs.skip == 'false'
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          git fetch --tags origin
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::tag $TAG already exists; skipping"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify six-file version sync
+        if: steps.optout.outputs.skip == 'false' && steps.tagcheck.outputs.exists == 'false'
+        run: |
+          # Reuse the canonical version-sync check from release.py via a
+          # tiny inline harness. If any of the six files disagree this
+          # exits non-zero and the tag is never created.
+          python <<'PY'
+          import importlib.util, sys, pathlib
+          spec = importlib.util.spec_from_file_location(
+              "release", pathlib.Path("scripts/release.py")
+          )
+          assert spec is not None and spec.loader is not None
+          mod = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+          versions = mod.extract_versions()
+          uniq = set(versions.values())
+          if len(uniq) != 1:
+              print("version mismatch across the six source-of-truth files:")
+              for path, version in versions.items():
+                  print(f"  {path.relative_to(pathlib.Path.cwd())}: {version}")
+              sys.exit(1)
+          print(f"all six files agree on version {next(iter(uniq))}")
+          PY
+
+      - name: Configure git for the bot
+        if: steps.optout.outputs.skip == 'false' && steps.tagcheck.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push tag
+        id: tag
+        if: steps.optout.outputs.skip == 'false' && steps.tagcheck.outputs.exists == 'false'
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          MESSAGE="Auto-release ${TAG}
+
+          Triggered by CI success on ${{ github.event.workflow_run.head_sha }}.
+          See the GitHub Release page for the full changelog.
+
+          ${{ github.event.workflow_run.html_url }}"
+          git tag -a "$TAG" -m "$MESSAGE"
+          git push origin "$TAG"
+          echo "::notice::created and pushed tag $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Auto-release summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- CI head SHA: \`${{ github.event.workflow_run.head_sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Detected version: \`${{ steps.version.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit opt-out: \`${{ steps.optout.outputs.skip }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tag already existed: \`${{ steps.tagcheck.outputs.exists }}\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "${{ steps.tag.outputs.tag }}" ]; then
+            echo "- ✅ **Created tag: \`${{ steps.tag.outputs.tag }}\`** — release.yml is now running." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- ⏭️ No tag created. This commit doesn't change the version, or CI didn't pass, or the tag already exists." >> "$GITHUB_STEP_SUMMARY"
+          fi

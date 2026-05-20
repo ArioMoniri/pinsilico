@@ -107,7 +107,7 @@ Skip this entire section if you chose Option B (unsigned).
 4. Apple asks for a Certificate Signing Request (CSR).
    - On macOS, open **Keychain Access**.
    - Menu: **Keychain Access** → **Certificate Assistant** → **Request a Certificate From a Certificate Authority…**
-   - Email: your Apple ID. Common Name: anything (e.g. "Ario Moniri Developer ID"). Saved to disk. Continue.
+   - Email: your Apple ID. Common Name: anything (e.g. "Ariorad Moniri Developer ID"). Saved to disk. Continue.
    - This produces a `.certSigningRequest` file.
 5. Upload the CSR back to Apple. Download the resulting `.cer` file.
 6. Double-click the `.cer` — it imports into Keychain Access alongside its private key.
