@@ -177,6 +177,44 @@ export function AddProteinDialog({
 
           {source === "upload" && (
             <>
+              <div style={fieldStyle}>
+                <label htmlFor="upload-file-picker" style={{ marginBottom: "0.25rem" }}>
+                  Choose a structure file
+                </label>
+                <input
+                  id="upload-file-picker"
+                  type="file"
+                  accept=".pdb,.cif,.ent,.pdbqt,text/plain,chemical/x-pdb,chemical/x-cif"
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                    const file = e.target.files?.[0];
+                    if (file === undefined) return;
+                    // Default the identifier to the filename stem so the
+                    // user doesn't have to type it manually — they can
+                    // still edit the field below.
+                    const stem = file.name.replace(/\.[^.]+$/, "");
+                    if (uploadIdentifier.trim() === "") {
+                      setUploadIdentifier(stem);
+                    }
+                    const reader = new FileReader();
+                    reader.addEventListener("load", () => {
+                      const text = reader.result;
+                      if (typeof text === "string") {
+                        setUploadText(text);
+                      }
+                    });
+                    reader.addEventListener("error", () => {
+                      setError(`Could not read file: ${file.name}`);
+                    });
+                    reader.readAsText(file);
+                  }}
+                  style={fileInputStyle}
+                  aria-label="Upload PDB or mmCIF file"
+                />
+                <small style={hintStyle}>
+                  Supported: <code>.pdb</code>, <code>.cif</code>, <code>.ent</code>,{" "}
+                  <code>.pdbqt</code>. The file is read locally — nothing leaves your machine.
+                </small>
+              </div>
               <label style={fieldStyle}>
                 Identifier
                 <input
@@ -190,14 +228,17 @@ export function AddProteinDialog({
                 />
               </label>
               <label style={fieldStyle}>
-                PDB text
+                PDB text{" "}
+                {uploadText.length > 0 && (
+                  <small style={hintStyle}>({uploadText.length.toLocaleString()} chars)</small>
+                )}
                 <textarea
                   value={uploadText}
                   onChange={(e) => {
                     setUploadText(e.target.value);
                   }}
-                  placeholder="Paste the contents of a .pdb file"
-                  rows={8}
+                  placeholder="Pick a file above, or paste the contents of a .pdb file here"
+                  rows={6}
                   style={{
                     ...inputStyle,
                     fontFamily: "ui-monospace, monospace",
@@ -297,6 +338,16 @@ const inputStyle: React.CSSProperties = {
 };
 
 const hintStyle: React.CSSProperties = { color: "#8b9097", fontSize: "0.75rem" };
+
+const fileInputStyle: React.CSSProperties = {
+  background: "#0f1115",
+  color: "#e6e9ef",
+  border: "1px dashed #3a3f48",
+  borderRadius: 4,
+  padding: "0.6rem",
+  fontSize: "0.85rem",
+  cursor: "pointer",
+};
 
 const primaryButtonStyle: React.CSSProperties = {
   background: "#3d6eb8",

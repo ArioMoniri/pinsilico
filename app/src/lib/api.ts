@@ -122,13 +122,17 @@ export interface FastForwardResponse {
 
 export class PinsilicoClient {
   private readonly config: ClientConfig;
+  private readonly fetchFn: typeof fetch;
 
   constructor(config: ClientConfig) {
     this.config = config;
-  }
-
-  private get fetchFn(): typeof fetch {
-    return this.config.fetchImpl ?? fetch;
+    // WebKit (Safari / Tauri's WKWebView on macOS) enforces that the
+    // global `fetch` is invoked with `this === window`. Holding a bare
+    // reference to `fetch` and calling it via a class property strips
+    // that binding and throws "Can only call Window.fetch on instances
+    // of Window". Bind once in the constructor so every request goes
+    // through a properly-bound function.
+    this.fetchFn = config.fetchImpl ?? fetch.bind(globalThis);
   }
 
   private async request<T>(
