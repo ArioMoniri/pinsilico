@@ -129,6 +129,20 @@ jobs:
           echo "::notice::created and pushed tag $TAG"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
+      - name: Dispatch release.yml against the new tag
+        if: steps.tag.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Tag pushes using the workflow's GITHUB_TOKEN do NOT trigger
+          # other workflows (GitHub's anti-recursion guard). Explicitly
+          # dispatching release.yml here is the canonical workaround —
+          # the workflows API call is allowed.
+          TAG="${{ steps.tag.outputs.tag }}"
+          sleep 5   # let the tag propagate to the API
+          gh workflow run release.yml --repo "${{ github.repository }}" --ref "$TAG"
+          echo "::notice::dispatched release.yml against $TAG"
+
       - name: Summary
         if: always()
         run: |
