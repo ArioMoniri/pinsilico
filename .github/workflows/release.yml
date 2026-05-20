@@ -140,10 +140,20 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist-artefacts
+          # Two groups: end-user installers, AND the Tauri-emitted updater
+          # bundles + signatures that generate_latest_json.py needs to
+          # build latest.json. The updater group covers .app.tar.gz (mac),
+          # .AppImage.tar.gz (linux), .msi.zip / .nsis.zip (windows) and
+          # all of their sibling .sig files.
           find app/src-tauri/target/release/bundle -type f \
-            \( -name "*.dmg" -o -name "*.app.tar.gz" -o -name "*.deb" \
-            -o -name "*.AppImage" -o -name "*.rpm" -o -name "*.msi" \
-            -o -name "*.exe" \) \
+            \( \
+              -name "*.dmg" -o -name "*.deb" -o -name "*.AppImage" \
+              -o -name "*.rpm" -o -name "*.msi" -o -name "*.exe" \
+              -o -name "*.app.tar.gz" -o -name "*.app.tar.gz.sig" \
+              -o -name "*.AppImage.tar.gz" -o -name "*.AppImage.tar.gz.sig" \
+              -o -name "*.msi.zip" -o -name "*.msi.zip.sig" \
+              -o -name "*.nsis.zip" -o -name "*.nsis.zip.sig" \
+            \) \
             -exec cp {} dist-artefacts/ \;
           ls -la dist-artefacts/ || true
 
