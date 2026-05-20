@@ -95,18 +95,23 @@ jobs:
         working-directory: app
         run: pnpm tauri build
         env:
-          # macOS notarization. Configure these three repo secrets under
-          # Settings → Secrets and variables → Actions → New repository secret.
-          # See docs/releasing.md for the step-by-step. macOS jobs without
-          # these secrets still build, but the .dmg won't be notarized and
-          # Gatekeeper will warn end users on first launch.
+          # macOS signing + notarization. ALL SIX SECRETS are required for
+          # a signed+notarized build. Leave any unset to ship unsigned —
+          # tauri-build detects the absence and skips signing automatically.
+          # See docs/releasing.md for step-by-step setup.
+          #
+          # Signing identity + cert:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # Notarization submission credentials:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # Windows builds are NOT code-signed in this workflow by design
-          # (BUILD_PROMPT v1 ships unsigned Windows installers; users will
-          # see a SmartScreen warning on first launch). Add Authenticode
-          # signing in a later release if desired.
+          # Windows builds are NOT code-signed in this workflow by design.
+          # Users will see a SmartScreen warning on first launch (one click
+          # past "More info → Run anyway"). Add Authenticode signing later
+          # if you want to remove that warning.
 
       - name: Collect artefacts
         shell: bash

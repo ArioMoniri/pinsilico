@@ -48,7 +48,7 @@ make ci        # 🎯 the exact gates GitHub Actions runs
 | ✅ | 5 → 10 | [v0.10.0-alpha](https://github.com/ArioMoniri/pinsilico/releases/tag/v0.10.0-alpha) | 22 routes · Tauri stdout parser · TS client · stores · dual 3D · panels · `.pinsilico` bundle |
 | ✅ | 11 — WebGPU | _local_ | Renderer picker + WGSL compute shader |
 | ✅ | 12 — Packaging | _local_ | Binary lockfile + PyInstaller + signed release.yml |
-| 🔜 | 14 — v1.0 release | — | Awaiting lockfile-populate + signing certs |
+| 🔜 | 14 — v1.0 release | — | Awaiting lockfile-populate + (optional) signing setup — see [docs/releasing.md](docs/releasing.md) |
 
 ## 🏗️ Architecture
 
