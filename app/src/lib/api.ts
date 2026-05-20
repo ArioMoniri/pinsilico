@@ -120,6 +120,43 @@ export interface FastForwardResponse {
   n_events: number;
 }
 
+export interface SimRunRequest {
+  sites: {
+    identifier: string;
+    centroid_xyz: [number, number, number];
+    radius_a: number;
+    dg_kcal_mol: number;
+  }[];
+  particles?: { position: [number, number, number] }[];
+  protein_centers?: [number, number, number][];
+  protein_radii?: number[];
+  diffusion_coeff_a2_per_frame?: number;
+  temperature_k?: number;
+  box_size_a?: number;
+  use_attraction?: boolean;
+  tau0_frames?: number;
+  seed?: number;
+  n_frames: number;
+  mode?: "inhibitor_only" | "ligand_only" | "competition";
+}
+
+export interface SimRunResponse {
+  final_positions: [number, number, number][];
+  bound_site_ids: (string | null)[];
+  frames_executed: number;
+}
+
+export interface PubChemSdfResponse {
+  cid: number;
+  sdf_text: string;
+}
+
+export interface DrugBankResponse {
+  drugbank_id: string;
+  name: string;
+  smiles: string | null;
+}
+
 export class PinsilicoClient {
   private readonly config: ClientConfig;
   private readonly fetchFn: typeof fetch;
@@ -223,6 +260,20 @@ export class PinsilicoClient {
     return this.request<PubChemSmilesResponse>("GET", `/db/pubchem/by_smiles?${params.toString()}`);
   }
 
+  pubchemSdf(cid: number): Promise<PubChemSdfResponse> {
+    return this.request<PubChemSdfResponse>(
+      "GET",
+      `/db/pubchem/compounds/${encodeURIComponent(String(cid))}/sdf`,
+    );
+  }
+
+  drugbankFetch(drugbankId: string): Promise<DrugBankResponse> {
+    return this.request<DrugBankResponse>(
+      "GET",
+      `/db/drugbank/drugs/${encodeURIComponent(drugbankId)}`,
+    );
+  }
+
   // --------------------------------------------------------------- pocket
   pocketDetect(pdbText: string, binaryPath = "fpocket"): Promise<DetectResponse> {
     return this.request<DetectResponse>("POST", "/pocket/detect", {
@@ -232,6 +283,10 @@ export class PinsilicoClient {
   }
 
   // ------------------------------------------------------------------ sim
+  simRun(req: SimRunRequest): Promise<SimRunResponse> {
+    return this.request<SimRunResponse>("POST", "/sim/run", req);
+  }
+
   simFastForward(req: FastForwardRequest): Promise<FastForwardResponse> {
     return this.request<FastForwardResponse>("POST", "/sim/fast_forward", req);
   }

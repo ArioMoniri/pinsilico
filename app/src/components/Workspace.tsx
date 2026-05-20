@@ -4,11 +4,13 @@ import { ApiError, PinsilicoClient, type FastForwardResponse } from "../lib/api"
 import { awaitSidecarReady } from "../lib/tauri";
 import { useSessionStore } from "../stores/session";
 import { ProteinPanel } from "./panels/ProteinPanel";
+import { LigandPanel } from "./panels/LigandPanel";
 import { SimPanel, type SimPanelValues } from "./panels/SimPanel";
 import { Toolbar, type SidecarStatus } from "./Toolbar";
 import { StatusBar } from "./StatusBar";
 import { Viewport } from "./Viewport";
 import { AddProteinDialog } from "./dialogs/AddProteinDialog";
+import { AddLigandDialog } from "./dialogs/AddLigandDialog";
 
 /**
  * Phase 7 workspace shell.
@@ -40,9 +42,13 @@ export function Workspace(): JSX.Element {
 
   const [sidecarStatus, setSidecarStatus] = useState<SidecarStatus>("connecting");
   const [sidecarVersion, setSidecarVersion] = useState<string | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
+  const [addProteinOpen, setAddProteinOpen] = useState(false);
+  const [addLigandOpen, setAddLigandOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [, setLastResult] = useState<FastForwardResponse | null>(null);
+  const [detectingProteinId, setDetectingProteinId] = useState<string | null>(null);
+  const [trajectoryPositions, setTrajectoryPositions] = useState<Float32Array | null>(null);
+  const [trajectoryBound, setTrajectoryBound] = useState<boolean[]>([]);
 
   // Initial sidecar handshake. Re-runs only if dependencies change
   // (which they don't here — this is mount-once). A successful IPC
@@ -77,6 +83,97 @@ export function Workspace(): JSX.Element {
     if (apiBase === null || token === null) return null;
     return new PinsilicoClient({ apiBase, token });
   }, [apiBase, token]);
+
+  // Run fpocket on a single protein and fold the resulting pockets
+  // back into the session store. The button on each protein card
+  // calls this; sim runs use the pockets here as binding sites.
+  const onDetectPockets = (proteinId: string): void => {
+    if (client === null) {
+      setStatusMessage("Sidecar not connected — can't detect pockets.");
+      return;
+    }
+    const protein = useSessionStore.getState().proteins[proteinId];
+    if (protein === undefined) return;
+    setDetectingProteinId(proteinId);
+    setStatusMessage(`Detecting pockets in ${proteinId}…`);
+    void client
+      .pocketDetect(protein.pdb_text)
+      .then((result) => {
+        useSessionStore.getState().setProteinPockets(proteinId, result.pockets);
+        setStatusMessage(`Detected ${result.pockets.length} pocket(s) in ${proteinId}.`);
+      })
+      .catch((e: unknown) => {
+        setStatusMessage(
+          e instanceof ApiError ? `${e.code}: ${e.message}` : "Pocket detection failed.",
+        );
+      })
+      .finally(() => {
+        setDetectingProteinId(null);
+      });
+  };
+
+  // Synchronous simulation run via /sim/run. Returns the final particle
+  // positions which we feed into the Arena viewport for visualisation.
+  // Live SSE streaming lands in a future phase.
+  const onSimTrajectoryRun = (values: SimPanelValues): void => {
+    if (client === null) {
+      setStatusMessage("Sidecar not connected — can't run simulation.");
+      return;
+    }
+    const proteins = useSessionStore.getState().proteins;
+    const sites = Object.values(proteins).flatMap((p) =>
+      p.pockets.map((pk) => ({
+        identifier: `${p.identifier}/${pk.identifier}`,
+        centroid_xyz: pk.centroid_xyz,
+        radius_a: Math.cbrt((3 * pk.volume_a3) / (4 * Math.PI)),
+        dg_kcal_mol: -4 - 6 * pk.druggability_score,
+      })),
+    );
+    if (sites.length === 0) {
+      setStatusMessage("No detected pockets yet — load a protein and detect pockets first.");
+      return;
+    }
+    // Seed the simulator with a random particle cloud so the Arena
+    // has something to integrate against. The sidecar accepts a
+    // particles[] field; we drop 64 starting positions in a box.
+    const rng = mulberry32(values.seed);
+    const boxHalf = 80;
+    const particles = Array.from({ length: 64 }, () => ({
+      position: [
+        (rng() * 2 - 1) * boxHalf,
+        (rng() * 2 - 1) * boxHalf,
+        (rng() * 2 - 1) * boxHalf,
+      ] as [number, number, number],
+    }));
+    setStatusMessage(`Integrating ${values.iterations} frames across ${sites.length} sites…`);
+    void client
+      .simRun({
+        sites,
+        particles,
+        temperature_k: values.temperatureK,
+        seed: values.seed,
+        n_frames: Math.min(values.iterations, 100_000),
+        use_attraction: values.useAttraction,
+        mode: values.mode,
+      })
+      .then((result) => {
+        const flat = new Float32Array(result.final_positions.length * 3);
+        result.final_positions.forEach(([x, y, z], i) => {
+          flat[3 * i] = x;
+          flat[3 * i + 1] = y;
+          flat[3 * i + 2] = z;
+        });
+        setTrajectoryPositions(flat);
+        setTrajectoryBound(result.bound_site_ids.map((s) => s !== null));
+        const boundCount = result.bound_site_ids.filter((s) => s !== null).length;
+        setStatusMessage(
+          `${result.frames_executed} frames · ${boundCount}/${particles.length} particles bound.`,
+        );
+      })
+      .catch((e: unknown) => {
+        setStatusMessage(e instanceof ApiError ? `${e.code}: ${e.message}` : "Simulation failed.");
+      });
+  };
 
   const onSimRun = (values: SimPanelValues): void => {
     if (client === null) {
@@ -133,7 +230,7 @@ export function Workspace(): JSX.Element {
         sidecarStatus={sidecarStatus}
         sidecarVersion={sidecarVersion}
         onAddProtein={() => {
-          setAddOpen(true);
+          setAddProteinOpen(true);
         }}
       />
 
@@ -141,17 +238,24 @@ export function Workspace(): JSX.Element {
         <aside style={leftPanelStyle}>
           <ProteinPanel
             onOpenAddDialog={() => {
-              setAddOpen(true);
+              setAddProteinOpen(true);
+            }}
+            onDetectPockets={onDetectPockets}
+            detectingProteinId={detectingProteinId}
+          />
+          <LigandPanel
+            onOpenAddDialog={() => {
+              setAddLigandOpen(true);
             }}
           />
         </aside>
 
         <main style={viewportStyle}>
-          <Viewport positions={null} bound={[]} />
+          <Viewport positions={trajectoryPositions} bound={trajectoryBound} />
         </main>
 
         <aside style={rightPanelStyle}>
-          <SimPanel onRun={onSimRun} onFastForward={onSimRun} />
+          <SimPanel onRun={onSimTrajectoryRun} onFastForward={onSimRun} />
         </aside>
       </div>
 
@@ -159,12 +263,23 @@ export function Workspace(): JSX.Element {
 
       <AddProteinDialog
         client={client}
-        open={addOpen}
+        open={addProteinOpen}
         onClose={() => {
-          setAddOpen(false);
+          setAddProteinOpen(false);
         }}
         onLoaded={(entry) => {
           setStatusMessage(`Loaded ${entry.identifier}.`);
+        }}
+      />
+
+      <AddLigandDialog
+        client={client}
+        open={addLigandOpen}
+        onClose={() => {
+          setAddLigandOpen(false);
+        }}
+        onLoaded={(record) => {
+          setStatusMessage(`Loaded ligand ${record.identifier}.`);
         }}
       />
     </div>
@@ -207,3 +322,18 @@ const rightPanelStyle: React.CSSProperties = {
   overflowY: "auto",
   minHeight: 0,
 };
+
+// Tiny, deterministic PRNG for seeding the simulation particle cloud.
+// Same algorithm used in the sidecar tests so the JS-side seed → initial
+// positions mapping stays reproducible. Adapted from
+// https://github.com/bryc/code/blob/master/jshash/PRNGs.md#mulberry32
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return function next(): number {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
