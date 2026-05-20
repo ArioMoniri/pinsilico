@@ -37,6 +37,22 @@ export async function mountPlugin(
   pdbText: string,
   spec: RepresentationSpec,
 ): Promise<MolstarHandle> {
+  // Defer mount by one animation frame. In React 18 strict mode the
+  // effect that calls us fires twice back-to-back during dev mount;
+  // without this defer Mol* can synchronously try to attach a node
+  // whose previous instance is still mid-removal, throwing
+  //   DOMException: The object can not be found here.
+  // One rAF is enough to let React settle between the two passes;
+  // production builds still benefit from the slightly delayed mount.
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+  // Bail if the container has already been detached (React unmounted
+  // us during the rAF wait). The caller's cancellation flag will also
+  // catch this on its end.
+  if (!container.isConnected) {
+    throw new Error("Mol* mount cancelled — container detached before init");
+  }
+
   // Hide the heavy default chrome — the workspace already has its own
   // toolbar + panels and the Mol* sidebars would clash. Users still
   // get the viewport, axes, and camera controls.

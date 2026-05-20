@@ -275,18 +275,33 @@ export function Workspace(): JSX.Element {
       setStatusMessage("No detected pockets yet — load a protein and detect pockets first.");
       return;
     }
-    // Seed the simulator with a random particle cloud so the Arena
-    // has something to integrate against. The sidecar accepts a
-    // particles[] field; we drop 64 starting positions in a box.
+    // Seed the simulator with a random particle cloud centred near
+    // the first site so the swarm renders inside the camera frustum
+    // from frame 1 (Arena's default camera frames the protein at
+    // radius ≈ 12 Å). 200 particles in a ±18 Å box gives a visible
+    // cloud without overwhelming the InstancedMesh.
     const rng = mulberry32(values.seed);
-    const boxHalf = 80;
-    const particles = Array.from({ length: 64 }, () => ({
+    const halfBox = 18;
+    const firstSite = sites[0]?.centroid_xyz ?? [0, 0, 0];
+    const particles = Array.from({ length: 200 }, () => ({
       position: [
-        (rng() * 2 - 1) * boxHalf,
-        (rng() * 2 - 1) * boxHalf,
-        (rng() * 2 - 1) * boxHalf,
+        firstSite[0] + (rng() * 2 - 1) * halfBox,
+        firstSite[1] + (rng() * 2 - 1) * halfBox,
+        firstSite[2] + (rng() * 2 - 1) * halfBox,
       ] as [number, number, number],
     }));
+
+    // Seed the Arena buffer immediately so the user sees the initial
+    // cloud the moment they hit Run, not only after the first sim
+    // frame lands over SSE.
+    const initialFlat = new Float32Array(particles.length * 3);
+    particles.forEach((p, i) => {
+      initialFlat[3 * i] = p.position[0];
+      initialFlat[3 * i + 1] = p.position[1];
+      initialFlat[3 * i + 2] = p.position[2];
+    });
+    setTrajectoryPositions(initialFlat);
+    setTrajectoryBound(new Array(particles.length).fill(false));
     setStatusMessage(`Streaming ${values.iterations} frames across ${sites.length} sites…`);
     const req = {
       sites,

@@ -107,6 +107,14 @@ jobs:
         # once the lockfile is real.
         continue-on-error: true
 
+      - name: Build fpocket from source (macOS + Linux)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: bash scripts/build_fpocket_from_source.sh
+        # fpocket has no prebuilt binary release — we always compile
+        # from source on macOS + Linux. The lockfile marks Windows as
+        # _unavailable. Skipped on Windows entirely.
+
       - name: Build sidecar
         shell: bash
         run: python3 scripts/build_sidecar.py

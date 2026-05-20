@@ -9,16 +9,18 @@
     "fpocket": {
       "platforms": {
         "linux-x86_64": {
-          "sha256": "5908eb271eae48d34e2d70fd04339c4c670568b7efd0e61c1d479dd1bf4ebecc",
-          "url": "https://github.com/Discngine/fpocket/archive/refs/tags/4.1.3.tar.gz"
+          "_source_build": true,
+          "_build_script": "scripts/build_fpocket_from_source.sh",
+          "_reason": "fpocket has no prebuilt binary release; build from source."
         },
         "macos-arm64": {
-          "sha256": "5908eb271eae48d34e2d70fd04339c4c670568b7efd0e61c1d479dd1bf4ebecc",
-          "url": "https://github.com/Discngine/fpocket/archive/refs/tags/4.1.3.tar.gz"
+          "_source_build": true,
+          "_build_script": "scripts/build_fpocket_from_source.sh",
+          "_reason": "fpocket has no prebuilt binary release; build from source."
         },
         "windows-x86_64": {
-          "sha256": "5908eb271eae48d34e2d70fd04339c4c670568b7efd0e61c1d479dd1bf4ebecc",
-          "url": "https://github.com/Discngine/fpocket/archive/refs/tags/4.1.3.tar.gz"
+          "_unavailable": true,
+          "_reason": "fpocket Makefile is POSIX-only; Windows users skip pocket detection."
         }
       },
       "version": "4.1.3"
