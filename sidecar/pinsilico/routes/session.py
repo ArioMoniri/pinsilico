@@ -19,6 +19,7 @@ Two routes:
 from __future__ import annotations
 
 import tempfile
+from contextlib import suppress
 from pathlib import Path
 from typing import Annotated
 
@@ -138,6 +139,23 @@ def save_session(req: Annotated[SaveSessionRequest, Body()]) -> Response:
     )
 
 
+def _parse_uploaded_bundle(payload: bytes) -> SessionBundle:
+    """Sync helper that owns the tempfile lifecycle.
+
+    Pulled out of the async route so the finally-block `Path.unlink`
+    runs in a sync context — keeps both ASYNC240 (no Path I/O in async)
+    and PTH108 (use Path.unlink, not os.unlink) happy.
+    """
+    with tempfile.NamedTemporaryFile(suffix=".pinsilico", delete=False) as tmp:
+        tmp.write(payload)
+        tmp_path = Path(tmp.name)
+    try:
+        return load_bundle(tmp_path)
+    finally:
+        with suppress(FileNotFoundError):
+            tmp_path.unlink()
+
+
 @router.post(
     "/load",
     response_model=LoadSessionResponse,
@@ -147,22 +165,13 @@ async def load_session(
     file: Annotated[UploadFile, File(description="A .pinsilico bundle")],
 ) -> LoadSessionResponse:
     payload = await file.read()
-    with tempfile.NamedTemporaryFile(suffix=".pinsilico", delete=False) as tmp:
-        tmp.write(payload)
-        tmp_path = Path(tmp.name)
     try:
-        try:
-            bundle = load_bundle(tmp_path)
-        except (FileNotFoundError, ValueError) as exc:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Could not parse bundle: {exc}",
-            ) from exc
-    finally:
-        # ASYNC240 — Path.unlink is fine here because cleanup is best-effort
-        # and the temp file is local; switching to anyio just to satisfy the
-        # lint would add a dep for no real-world benefit.
-        tmp_path.unlink(missing_ok=True)  # noqa: ASYNC240
+        bundle = _parse_uploaded_bundle(payload)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Could not parse bundle: {exc}",
+        ) from exc
 
     return LoadSessionResponse(
         version=bundle.version,
