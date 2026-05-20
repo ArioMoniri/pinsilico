@@ -105,6 +105,10 @@ app/src-tauri/binaries/*
 # of leaving sensitive files in the working tree.
 /secretme/
 
+# Claude Code editor's local state — schedule locks, worktrees, transcripts.
+# Per-developer ephemera; never useful in the repo.
+.claude/
+
 # Bundled binaries fetched at build time (checksum-verified)
 sidecar/resources/binaries/*
 !sidecar/resources/binaries/.gitkeep
