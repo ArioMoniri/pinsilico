@@ -9,15 +9,15 @@
 ## 📥 Download
 
 <p align="center">
-  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.1.0_aarch64.dmg">
+  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.2.0_aarch64.dmg">
     <img alt="Download for macOS" src="https://img.shields.io/badge/Download_for-macOS-000000?style=for-the-badge&logo=apple&logoColor=white" height="48">
   </a>
   &nbsp;
-  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.1.0_x64_en-US.msi">
+  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.2.0_x64_en-US.msi">
     <img alt="Download for Windows" src="https://img.shields.io/badge/Download_for-Windows-000000?style=for-the-badge&logo=windows&logoColor=white" height="48">
   </a>
   &nbsp;
-  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.1.0_amd64.AppImage">
+  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.2.0_amd64.AppImage">
     <img alt="Download for Linux" src="https://img.shields.io/badge/Download_for-Linux-000000?style=for-the-badge&logo=linux&logoColor=white" height="48">
   </a>
 </p>
@@ -71,6 +71,7 @@ make ci        # 🎯 the exact gates GitHub Actions runs
 | ✅ | 12 — Packaging | _local_ | Binary lockfile + PyInstaller + signed release.yml |
 | ✅ | 14 — v1.0 release | [v1.0.0](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.0.0) | Signed 3-OS builds + Tauri auto-updater manifest |
 | ✅ | 6 + 7 — Sidecar bundling + Workspace UI | [v1.1.0](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.1.0) | PyInstaller sidecar bundled into the .app · spawn + banner-parse + IPC commands · 3-pane workspace shell |
+| ✅ | 9 + ligand library + sim trajectory | [v1.2.0](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.2.0) | Real Mol\* atomistic viewer · LigandPanel + 5 sources · fpocket detection wiring · /sim/run trajectory |
 
 ## 🏗️ Architecture
 

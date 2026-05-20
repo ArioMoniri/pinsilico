@@ -9,4 +9,4 @@
  *
  * Phase 12 packaging gates this with a CI check that asserts all four match.
  */
-export const APP_VERSION = "1.1.0" as const;
+export const APP_VERSION = "1.2.0" as const;
