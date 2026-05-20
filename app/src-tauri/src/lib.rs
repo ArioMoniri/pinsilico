@@ -173,9 +173,7 @@ pub fn run() {
                     }
                 },
                 Err(e) => {
-                    eprintln!(
-                        "[sidecar] could not locate externalBin 'pinsilico-sidecar': {e}",
-                    );
+                    eprintln!("[sidecar] could not locate externalBin 'pinsilico-sidecar': {e}",);
                 }
             }
 
