@@ -59,15 +59,20 @@ PYPROJECT = ROOT / "sidecar" / "pyproject.toml"
 
 _REPO = "ArioMoniri/pinsilico"
 
-# Map Tauri's per-OS bundle filename suffixes to the platform key the
-# updater plugin uses.
+# Map Tauri 2.x per-OS bundle filename suffixes to the platform key the
+# updater plugin uses. Note: Tauri 2.x signs the installers directly —
+# there is no .AppImage.tar.gz or .msi.zip wrapper anymore (those were
+# Tauri 1.x). The macOS bundle keeps .app.tar.gz, and on a single-arch
+# build the tauri-bundler omits the arch suffix (so "PInSilico.app.tar.gz"
+# rather than "PInSilico_1.0.0_aarch64.app.tar.gz").
 _PLATFORM_SUFFIXES: Final[dict[str, str]] = {
-    "_aarch64.app.tar.gz": "darwin-aarch64",
-    "_x64.app.tar.gz": "darwin-x86_64",
-    "_amd64.AppImage.tar.gz": "linux-x86_64",
-    "_x86_64.AppImage.tar.gz": "linux-x86_64",
-    "_x64-setup.nsis.zip": "windows-x86_64",
-    "_x64_en-US.msi.zip": "windows-x86_64",
+    ".app.tar.gz": "darwin-aarch64",
+    "_amd64.AppImage": "linux-x86_64",
+    "_x86_64.AppImage": "linux-x86_64",
+    # MSI is the canonical Windows updater target; the NSIS _x64-setup.exe
+    # is shipped as a separate download installer but not in latest.json
+    # (Tauri's updater needs exactly one URL per platform).
+    "_x64_en-US.msi": "windows-x86_64",
 }
 
 
@@ -209,8 +214,8 @@ def main(argv: list[str] | None = None) -> int:
         msg = (
             f"no Tauri updater artefacts found under {args.artefacts}. "
             "Confirm release.yml's matrix jobs ran with createUpdaterArtifacts=true "
-            "and uploaded the resulting .app.tar.gz / .AppImage.tar.gz / .msi.zip + "
-            ".sig files."
+            "and uploaded the resulting .app.tar.gz (mac) / .AppImage (linux) / "
+            ".msi or _setup.exe (windows) + their .sig signatures."
         )
         raise SystemExit(msg)
 
