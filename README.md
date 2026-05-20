@@ -3,7 +3,28 @@
 > Single-binary desktop app for end-to-end in-silico drug discovery 🔬💊
 
 [![CI](https://github.com/ArioMoniri/pinsilico/actions/workflows/ci.yml/badge.svg)](https://github.com/ArioMoniri/pinsilico/actions/workflows/ci.yml)
+[![Latest Release](https://img.shields.io/github/v/release/ArioMoniri/pinsilico?include_prereleases&label=release)](https://github.com/ArioMoniri/pinsilico/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+## 📥 Download
+
+<p align="center">
+  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.1.0_aarch64.dmg">
+    <img alt="Download for macOS" src="https://img.shields.io/badge/Download_for-macOS-000000?style=for-the-badge&logo=apple&logoColor=white" height="48">
+  </a>
+  &nbsp;
+  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.1.0_x64_en-US.msi">
+    <img alt="Download for Windows" src="https://img.shields.io/badge/Download_for-Windows-000000?style=for-the-badge&logo=windows&logoColor=white" height="48">
+  </a>
+  &nbsp;
+  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.1.0_amd64.AppImage">
+    <img alt="Download for Linux" src="https://img.shields.io/badge/Download_for-Linux-000000?style=for-the-badge&logo=linux&logoColor=white" height="48">
+  </a>
+</p>
+
+<p align="center">
+  <sub>macOS arm64 (.dmg) · Windows x64 (.msi) · Linux x86_64 (.AppImage) · Also available: <a href="https://github.com/ArioMoniri/pinsilico/releases/latest">.deb · .rpm · NSIS .exe</a></sub>
+</p>
 
 ---
 
@@ -48,7 +69,8 @@ make ci        # 🎯 the exact gates GitHub Actions runs
 | ✅ | 5 → 10 | [v0.10.0-alpha](https://github.com/ArioMoniri/pinsilico/releases/tag/v0.10.0-alpha) | 22 routes · Tauri stdout parser · TS client · stores · dual 3D · panels · `.pinsilico` bundle |
 | ✅ | 11 — WebGPU | _local_ | Renderer picker + WGSL compute shader |
 | ✅ | 12 — Packaging | _local_ | Binary lockfile + PyInstaller + signed release.yml |
-| 🔜 | 14 — v1.0 release | — | Awaiting lockfile-populate + (optional) signing setup — see [docs/releasing.md](docs/releasing.md) |
+| ✅ | 14 — v1.0 release | [v1.0.0](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.0.0) | Signed 3-OS builds + Tauri auto-updater manifest |
+| ✅ | 6 + 7 — Sidecar bundling + Workspace UI | [v1.1.0](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.1.0) | PyInstaller sidecar bundled into the .app · spawn + banner-parse + IPC commands · 3-pane workspace shell |
 
 ## 🏗️ Architecture
 

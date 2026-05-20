@@ -86,6 +86,17 @@ def main(argv: list[str] | None = None) -> int:
         "--workpath", str(work / "build"),
         "--noconfirm",
         "--clean",
+        # PyInstaller's static analysis misses dynamically-imported
+        # framework modules. `--collect-all` walks each package and
+        # bundles every submodule + datafile so uvicorn / starlette
+        # / fastapi / pydantic / our own routes all end up in the
+        # onefile binary. Without these, the bundle starts but fails
+        # at first import with ModuleNotFoundError.
+        "--collect-all", "uvicorn",
+        "--collect-all", "fastapi",
+        "--collect-all", "starlette",
+        "--collect-all", "pydantic",
+        "--collect-all", "pinsilico",
         # Bundle the chemistry resources directory so the runtime can find
         # the DrugBank CSV and any starter-kit PDBs.
         "--add-data",

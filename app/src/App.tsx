@@ -1,25 +1,14 @@
-import { APP_VERSION } from "./lib/version";
+import type { JSX } from "react";
+
+import { Workspace } from "./components/Workspace";
 
 /**
- * Phase 0 placeholder. Renders a single label matching the Tauri window
- * title. Phase 7 replaces this with the full workspace shell + routes.
+ * Application root.
+ *
+ * Phase 0 shipped a literal title placeholder here; Phase 7 swaps it
+ * for the full {@link Workspace} shell — toolbar, three-pane layout
+ * (proteins · 3D viewport · simulation), and a status bar.
  */
 export function App(): JSX.Element {
-  return (
-    <main
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100vh",
-        fontFamily: "system-ui, -apple-system, sans-serif",
-        color: "#1a1a1a",
-        background: "#fafafa",
-      }}
-    >
-      <h1 style={{ margin: 0, fontWeight: 600 }}>PInSilico</h1>
-      <p style={{ margin: "0.5rem 0 0", opacity: 0.6 }}>v{APP_VERSION}</p>
-    </main>
-  );
+  return <Workspace />;
 }

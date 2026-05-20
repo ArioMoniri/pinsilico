@@ -14,6 +14,7 @@ Phase 1 does **not** add chemistry routes yet - those land in Phases 2-5.
 from __future__ import annotations
 
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from pinsilico import __version__
@@ -71,6 +72,25 @@ def create_app(*, token: str | None = None) -> FastAPI:
             "Never exposed beyond 127.0.0.1. Every route except /health "
             "requires the X-Pinsilico-Token header."
         ),
+    )
+
+    # CORS for the Tauri webview. The webview loads from `tauri://localhost`
+    # (macOS / Linux) or `http://tauri.localhost` (Windows). Without CORS
+    # headers the browser blocks fetches from the page even though the
+    # request itself succeeds — the workspace then shows "Sidecar offline"
+    # despite a working banner handshake. Auth is still enforced by the
+    # per-launch token on every non-health route, so allowing the Tauri
+    # origins here does not weaken the security boundary.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "tauri://localhost",
+            "http://tauri.localhost",
+            "https://tauri.localhost",
+        ],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
     install_handlers(app)
 

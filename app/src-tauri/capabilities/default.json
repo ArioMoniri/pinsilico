@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default permissions for the main PInSilico window. Grants the standard core APIs plus updater + process + shell.sidecar so the Rust shell can spawn the Python sidecar, and exposes our three sidecar-discovery IPC commands to the webview.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "updater:default",
+    "process:default",
+    "shell:default"
+  ]
+}
