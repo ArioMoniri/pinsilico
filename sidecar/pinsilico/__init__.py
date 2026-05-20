@@ -20,6 +20,6 @@ Phase 12 packaging adds a CI step asserting all six agree.
 
 from __future__ import annotations
 
-__version__: str = "1.2.0"
+__version__: str = "1.3.0"
 
 __all__ = ["__version__"]

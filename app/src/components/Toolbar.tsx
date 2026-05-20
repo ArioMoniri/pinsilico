@@ -11,6 +11,7 @@ interface ToolbarProps {
   onAddProtein: () => void;
   onSaveSession: () => void;
   onLoadSession: () => void;
+  onOpenSettings: () => void;
 }
 
 /**
@@ -25,6 +26,7 @@ export function Toolbar({
   onAddProtein,
   onSaveSession,
   onLoadSession,
+  onOpenSettings,
 }: ToolbarProps): JSX.Element {
   const view = useSceneStore((s) => s.view);
   const setView = useSceneStore((s) => s.setView);
@@ -69,6 +71,15 @@ export function Toolbar({
           title="Save the workspace as a .pinsilico session bundle"
         >
           Save
+        </button>
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          style={secondaryButtonStyle}
+          title="Settings"
+          aria-label="Settings"
+        >
+          ⚙
         </button>
         <button type="button" onClick={onAddProtein} style={primaryButtonStyle}>
           + Add protein

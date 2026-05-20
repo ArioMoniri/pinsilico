@@ -16,6 +16,8 @@ import { StatusBar } from "./StatusBar";
 import { Viewport } from "./Viewport";
 import { AddProteinDialog } from "./dialogs/AddProteinDialog";
 import { AddLigandDialog } from "./dialogs/AddLigandDialog";
+import { DockingDialog } from "./dialogs/DockingDialog";
+import { SettingsDialog } from "./dialogs/SettingsDialog";
 
 /**
  * Phase 7 workspace shell.
@@ -49,6 +51,8 @@ export function Workspace(): JSX.Element {
   const [sidecarVersion, setSidecarVersion] = useState<string | null>(null);
   const [addProteinOpen, setAddProteinOpen] = useState(false);
   const [addLigandOpen, setAddLigandOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [dockingOpen, setDockingOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [, setLastResult] = useState<FastForwardResponse | null>(null);
   const [detectingProteinId, setDetectingProteinId] = useState<string | null>(null);
@@ -225,9 +229,11 @@ export function Workspace(): JSX.Element {
       });
   };
 
-  // Synchronous simulation run via /sim/run. Returns the final particle
-  // positions which we feed into the Arena viewport for visualisation.
-  // Live SSE streaming lands in a future phase.
+  // Live-streamed simulation run. The sidecar yields one SSE frame
+  // per (downsampled) integration step; we update the Arena positions
+  // as each frame arrives so the user sees real-time playback rather
+  // than a "compute then teleport" jump. Falls back to /sim/run for
+  // browsers without streaming-body fetch support.
   const onSimTrajectoryRun = (values: SimPanelValues): void => {
     if (client === null) {
       setStatusMessage("Sidecar not connected — can't run simulation.");
@@ -258,30 +264,30 @@ export function Workspace(): JSX.Element {
         (rng() * 2 - 1) * boxHalf,
       ] as [number, number, number],
     }));
-    setStatusMessage(`Integrating ${values.iterations} frames across ${sites.length} sites…`);
+    setStatusMessage(`Streaming ${values.iterations} frames across ${sites.length} sites…`);
+    const req = {
+      sites,
+      particles,
+      temperature_k: values.temperatureK,
+      seed: values.seed,
+      n_frames: Math.min(values.iterations, 100_000),
+      use_attraction: values.useAttraction,
+      mode: values.mode,
+    };
     void client
-      .simRun({
-        sites,
-        particles,
-        temperature_k: values.temperatureK,
-        seed: values.seed,
-        n_frames: Math.min(values.iterations, 100_000),
-        use_attraction: values.useAttraction,
-        mode: values.mode,
-      })
-      .then((result) => {
-        const flat = new Float32Array(result.final_positions.length * 3);
-        result.final_positions.forEach(([x, y, z], i) => {
+      .simStream(req, (frame) => {
+        // Replace the Arena buffer with the latest frame as it lands.
+        const flat = new Float32Array(frame.positions.length * 3);
+        frame.positions.forEach(([x, y, z], i) => {
           flat[3 * i] = x;
           flat[3 * i + 1] = y;
           flat[3 * i + 2] = z;
         });
         setTrajectoryPositions(flat);
-        setTrajectoryBound(result.bound_site_ids.map((s) => s !== null));
-        const boundCount = result.bound_site_ids.filter((s) => s !== null).length;
-        setStatusMessage(
-          `${result.frames_executed} frames · ${boundCount}/${particles.length} particles bound.`,
-        );
+        setTrajectoryBound(frame.bound);
+      })
+      .then((total) => {
+        setStatusMessage(`${total} frames streamed.`);
       })
       .catch((e: unknown) => {
         setStatusMessage(e instanceof ApiError ? `${e.code}: ${e.message}` : "Simulation failed.");
@@ -347,6 +353,9 @@ export function Workspace(): JSX.Element {
         }}
         onSaveSession={onSaveSession}
         onLoadSession={onLoadSession}
+        onOpenSettings={() => {
+          setSettingsOpen(true);
+        }}
       />
 
       <div style={bodyStyle}>
@@ -361,6 +370,9 @@ export function Workspace(): JSX.Element {
           <LigandPanel
             onOpenAddDialog={() => {
               setAddLigandOpen(true);
+            }}
+            onOpenDocking={() => {
+              setDockingOpen(true);
             }}
           />
         </aside>
@@ -384,6 +396,21 @@ export function Workspace(): JSX.Element {
         }}
         onLoaded={(entry) => {
           setStatusMessage(`Loaded ${entry.identifier}.`);
+        }}
+      />
+
+      <DockingDialog
+        client={client}
+        open={dockingOpen}
+        onClose={() => {
+          setDockingOpen(false);
+        }}
+      />
+
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={() => {
+          setSettingsOpen(false);
         }}
       />
 

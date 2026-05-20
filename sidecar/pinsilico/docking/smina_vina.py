@@ -29,25 +29,99 @@ _REMARK_RE = re.compile(
 _MODEL_RE = re.compile(r"^MODEL\s+\d+", re.MULTILINE)
 
 
+def _resolve_obabel() -> str:
+    """Find the obabel binary.
+
+    Looks in this order:
+    1. ``$OBABEL_BIN`` env override — useful for CI / per-user installs.
+    2. ``sidecar/resources/binaries/obabel`` — Phase 12 bundled drop.
+    3. ``shutil.which("obabel")`` — system PATH fallback.
+
+    Raises :class:`DockingError` if none of the candidates exist; the
+    route layer converts that to a user-facing 422.
+    """
+    import os
+    import shutil as _shutil
+
+    env = os.environ.get("OBABEL_BIN")
+    if env and Path(env).exists():
+        return env
+    bundled = Path(__file__).resolve().parents[2] / "resources" / "binaries" / "obabel"
+    if bundled.exists():
+        return str(bundled)
+    on_path = _shutil.which("obabel")
+    if on_path is not None:
+        return on_path
+    msg = (
+        "obabel binary not found. Install Open Babel and either put it on PATH, "
+        "set the OBABEL_BIN environment variable, or drop a copy under "
+        "sidecar/resources/binaries/obabel."
+    )
+    raise DockingError(msg, engine="obabel")
+
+
 def _prepare_ligand_pdbqt(smiles: str, workdir: Path) -> Path:
     """Convert a SMILES string to a PDBQT file via Open Babel.
 
-    Phase 3 unit tests patch this with a fixture path; the real
-    implementation shells out to ``obabel`` at Phase 6 wiring time.
+    Adds explicit hydrogens (``-h``) and generates 3D coordinates
+    (``--gen3d``) so the docking engine has a sensible starting pose.
+    Output goes to ``workdir/ligand.pdbqt``.
     """
-    # The Phase 12 bundle ships obabel under sidecar/resources/binaries/.
-    # Until then, raise — patches in tests mean this is never reached.
-    msg = "obabel-based ligand prep lands with Phase 6 sidecar wiring"
-    raise NotImplementedError(msg)
+    obabel = _resolve_obabel()
+    out_path = workdir / "ligand.pdbqt"
+    try:
+        result = subprocess.run(  # noqa: S603 — args are not user-supplied shell text
+            [obabel, f"-:{smiles}", "-O", str(out_path), "-h", "--gen3d"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except FileNotFoundError as exc:
+        raise DockingError(
+            f"obabel binary not executable: {obabel}",
+            engine="obabel",
+            original=exc,
+        ) from exc
+    if result.returncode != 0 or not out_path.exists():
+        raise DockingError(
+            f"obabel ligand prep failed ({result.returncode}): {result.stderr.strip()}",
+            engine="obabel",
+        )
+    return out_path
 
 
 def _prepare_receptor_pdbqt(pdb_text: str, workdir: Path) -> Path:
     """Convert a receptor PDB to PDBQT via Open Babel.
 
-    Same Phase 6 caveat as :func:`_prepare_ligand_pdbqt`.
+    Uses ``-xr`` (rigid receptor) and writes to ``workdir/receptor.pdbqt``.
+    The input PDB text is written to a scratch ``.pdb`` file first because
+    obabel reads from disk.
     """
-    msg = "obabel-based receptor prep lands with Phase 6 sidecar wiring"
-    raise NotImplementedError(msg)
+    obabel = _resolve_obabel()
+    pdb_path = workdir / "receptor.pdb"
+    pdb_path.write_text(pdb_text, encoding="utf-8")
+    out_path = workdir / "receptor.pdbqt"
+    try:
+        result = subprocess.run(  # noqa: S603
+            [obabel, str(pdb_path), "-O", str(out_path), "-xr"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except FileNotFoundError as exc:
+        raise DockingError(
+            f"obabel binary not executable: {obabel}",
+            engine="obabel",
+            original=exc,
+        ) from exc
+    if result.returncode != 0 or not out_path.exists():
+        raise DockingError(
+            f"obabel receptor prep failed ({result.returncode}): {result.stderr.strip()}",
+            engine="obabel",
+        )
+    return out_path
 
 
 def _parse_pdbqt_output(text: str) -> list[Pose]:

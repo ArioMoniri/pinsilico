@@ -146,6 +146,31 @@ export interface SimRunResponse {
   frames_executed: number;
 }
 
+export interface SimStreamFrame {
+  frame: number;
+  positions: [number, number, number][];
+  bound: boolean[];
+}
+
+/**
+ * Parse one Server-Sent-Events "frame" (the chunk between two `\n\n`
+ * separators). Returns `{event, data}` for any frame whose event line
+ * matches and whose data line is present; returns null otherwise.
+ *
+ * The sidecar emits exactly two event types — `frame` (per-step) and
+ * `done` (terminator) — so we don't bother with id / retry fields.
+ */
+function parseSseFrame(raw: string): { event: string; data: string } | null {
+  let event: string | null = null;
+  let data: string | null = null;
+  for (const line of raw.split("\n")) {
+    if (line.startsWith("event:")) event = line.slice(6).trim();
+    else if (line.startsWith("data:")) data = line.slice(5).trim();
+  }
+  if (event === null || data === null) return null;
+  return { event, data };
+}
+
 export interface PubChemSdfResponse {
   cid: number;
   sdf_text: string;
@@ -191,6 +216,29 @@ export interface SessionLoadResponse {
   seed: number;
   proteins: SessionSavePayloadProtein[];
   ligands: SessionSavePayloadLigand[];
+}
+
+export interface DockingRunRequest {
+  engine: "smina" | "vina";
+  receptor_pdb: string;
+  ligand_smiles: string;
+  center_xyz: [number, number, number];
+  size_xyz?: [number, number, number];
+  exhaustiveness?: number;
+  num_modes?: number;
+  seed?: number | null;
+}
+
+export interface DockingPose {
+  rank: number;
+  affinity_kcal_mol: number;
+  rmsd_lb: number;
+  rmsd_ub: number;
+}
+
+export interface DockingRunResponse {
+  engine: "smina" | "vina";
+  poses: DockingPose[];
 }
 
 export class PinsilicoClient {
@@ -367,9 +415,74 @@ export class PinsilicoClient {
     return (await response.json()) as SessionLoadResponse;
   }
 
+  // -------------------------------------------------------------- docking
+  dockingRun(req: DockingRunRequest): Promise<DockingRunResponse> {
+    return this.request<DockingRunResponse>("POST", "/docking/run", req);
+  }
+
   // ------------------------------------------------------------------ sim
   simRun(req: SimRunRequest): Promise<SimRunResponse> {
     return this.request<SimRunResponse>("POST", "/sim/run", req);
+  }
+
+  /**
+   * Stream a simulation: each frame the sidecar emits is delivered via
+   * `onFrame` as the integration progresses. The native `EventSource`
+   * API can't send the per-launch token header, so we hand-roll a
+   * minimal SSE parser on top of `fetch` + `ReadableStream`. Resolves
+   * to the total frame count once the sidecar emits the `done` event.
+   */
+  async simStream(
+    req: SimRunRequest,
+    onFrame: (frame: SimStreamFrame) => void,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<number> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+      "X-Pinsilico-Token": this.config.token,
+    };
+    const init: RequestInit = {
+      method: "POST",
+      headers,
+      body: JSON.stringify(req),
+    };
+    if (options.signal !== undefined) {
+      init.signal = options.signal;
+    }
+    const response = await this.fetchFn(`${this.config.apiBase}/sim/stream`, init);
+    if (!response.ok || response.body === null) {
+      const envelope = await response.json().catch(() => ({
+        error: { code: `HTTP_${response.status}`, message: response.statusText, details: {} },
+      }));
+      throw new ApiError(response.status, envelope as ErrorEnvelope);
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buf = "";
+    let total = 0;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      // SSE frames are separated by a blank line ("\n\n"). Parse off
+      // every complete frame in the buffer; leave the partial tail.
+      let sep: number;
+      while ((sep = buf.indexOf("\n\n")) !== -1) {
+        const raw = buf.slice(0, sep);
+        buf = buf.slice(sep + 2);
+        const parsed = parseSseFrame(raw);
+        if (parsed === null) continue;
+        if (parsed.event === "frame") {
+          const data = JSON.parse(parsed.data) as SimStreamFrame;
+          onFrame(data);
+        } else if (parsed.event === "done") {
+          const done = JSON.parse(parsed.data) as { frames_executed: number };
+          total = done.frames_executed;
+        }
+      }
+    }
+    return total;
   }
 
   simFastForward(req: FastForwardRequest): Promise<FastForwardResponse> {

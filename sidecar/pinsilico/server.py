@@ -21,6 +21,7 @@ from pinsilico import __version__
 from pinsilico.auth import make_token_verifier, resolve_token
 from pinsilico.errors import install_handlers
 from pinsilico.routes import db as db_routes
+from pinsilico.routes import docking as docking_routes
 from pinsilico.routes import pocket as pocket_routes
 from pinsilico.routes import session as session_routes
 from pinsilico.routes import sim as sim_routes
@@ -103,6 +104,7 @@ def create_app(*, token: str | None = None) -> FastAPI:
     app.include_router(pocket_routes.router, dependencies=[Depends(verifier)])
     app.include_router(sim_routes.router, dependencies=[Depends(verifier)])
     app.include_router(session_routes.router, dependencies=[Depends(verifier)])
+    app.include_router(docking_routes.router, dependencies=[Depends(verifier)])
 
     @app.get(
         "/health",

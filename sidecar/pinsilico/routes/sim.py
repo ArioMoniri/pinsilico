@@ -14,10 +14,13 @@ Phase 5 exposes two endpoints over the Phase 4 simulator:
 
 from __future__ import annotations
 
+import json
+from collections.abc import Generator
 from typing import Annotated, Literal
 
 import numpy as np
 from fastapi import APIRouter, Body
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from pinsilico.sim.engine import BindingSite, Particle, SimConfig, Simulator
@@ -153,6 +156,76 @@ def sim_fast_forward(req: Annotated[FastForwardRequest, Body()]) -> FastForwardR
     sim = _build_simulator(req.sites, temperature_k=req.temperature_k, seed=req.seed)
     counts = sim.fast_forward(req.n_events)
     return FastForwardResponse(counts=counts, n_events=req.n_events)
+
+
+@router.post(
+    "/stream",
+    summary="Server-sent-events trajectory stream",
+    description=(
+        "Same input as /sim/run, but yields one Server-Sent-Event per "
+        "rendered frame (downsampled to keep wire traffic small). The "
+        "frontend Arena renders each frame as it arrives for a true "
+        "live-playback feel rather than a 'compute then teleport' jump."
+    ),
+)
+def sim_stream(req: Annotated[SimRunRequest, Body()]) -> StreamingResponse:
+    """Stream integration frames as Server-Sent-Events.
+
+    Wire format (one frame per event):
+        event: frame
+        data: {"frame": <int>, "positions": [[x,y,z],...], "bound": [bool,...]}
+
+    Final event:
+        event: done
+        data: {"frames_executed": <int>}
+
+    We downsample so the client gets at most ``MAX_STREAM_FRAMES``
+    frames even on long runs — the integration still uses the full
+    ``n_frames``; only the wire emission is throttled.
+    """
+    sim = _build_simulator(
+        req.sites,
+        protein_centers=req.protein_centers,
+        protein_radii=req.protein_radii,
+        diffusion_coeff_a2_per_frame=req.diffusion_coeff_a2_per_frame,
+        temperature_k=req.temperature_k,
+        box_size_a=req.box_size_a,
+        use_attraction=req.use_attraction,
+        tau0_frames=req.tau0_frames,
+        seed=req.seed,
+    )
+    sim.spawn_particles(
+        [Particle(position=np.array(p.position, dtype=np.float64)) for p in req.particles],
+    )
+
+    max_stream_frames = 200
+    stride = max(1, req.n_frames // max_stream_frames)
+
+    def _events() -> Generator[bytes, None, None]:
+        for i in range(req.n_frames):
+            sim.step()
+            if i % stride != 0 and i != req.n_frames - 1:
+                continue
+            payload = {
+                "frame": i + 1,
+                "positions": [
+                    (float(p.position[0]), float(p.position[1]), float(p.position[2]))
+                    for p in sim.particles
+                ],
+                "bound": [p.bound_site_id is not None for p in sim.particles],
+            }
+            yield f"event: frame\ndata: {json.dumps(payload)}\n\n".encode("utf-8")
+        done = {"frames_executed": req.n_frames}
+        yield f"event: done\ndata: {json.dumps(done)}\n\n".encode("utf-8")
+
+    return StreamingResponse(
+        _events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 __all__: list[str] = ["router"]

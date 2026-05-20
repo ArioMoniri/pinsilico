@@ -6,6 +6,8 @@ import { useSessionStore } from "../../stores/session";
 interface LigandPanelProps {
   /** Opened by the workspace when the user clicks "Add ligand". */
   onOpenAddDialog?: () => void;
+  /** Opened by the workspace when the user clicks "Dock". */
+  onOpenDocking?: () => void;
 }
 
 /**
@@ -14,7 +16,7 @@ interface LigandPanelProps {
  * toggle, and a remove button. The workspace owns the API client; this
  * panel only renders the session-store slice.
  */
-export function LigandPanel({ onOpenAddDialog }: LigandPanelProps): JSX.Element {
+export function LigandPanel({ onOpenAddDialog, onOpenDocking }: LigandPanelProps): JSX.Element {
   const ligands = useSessionStore((s) => s.ligands);
   const removeLigand = useSessionStore((s) => s.removeLigand);
   const toggleInhibitor = useSessionStore((s) => s.toggleInhibitor);
@@ -25,14 +27,27 @@ export function LigandPanel({ onOpenAddDialog }: LigandPanelProps): JSX.Element 
     <section aria-label="Ligand library" style={{ padding: "0.75rem" }}>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2 style={{ margin: 0, fontSize: "0.95rem" }}>Ligands ({entries.length})</h2>
-        <button
-          type="button"
-          onClick={onOpenAddDialog}
-          aria-label="Add ligand"
-          style={panelButtonStyle}
-        >
-          + Add
-        </button>
+        <div style={{ display: "flex", gap: "0.3rem" }}>
+          {onOpenDocking !== undefined && entries.length > 0 && (
+            <button
+              type="button"
+              onClick={onOpenDocking}
+              aria-label="Run docking"
+              title="Run Smina / Vina docking against a pocket"
+              style={panelButtonStyle}
+            >
+              Dock
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onOpenAddDialog}
+            aria-label="Add ligand"
+            style={panelButtonStyle}
+          >
+            + Add
+          </button>
+        </div>
       </header>
       {entries.length === 0 ? (
         <p style={{ color: "#8b9097", marginTop: "0.5rem" }}>
