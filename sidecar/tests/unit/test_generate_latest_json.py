@@ -129,6 +129,4 @@ class TestMain:
         artefacts.mkdir()
         out = tmp_path / "latest.json"
         with pytest.raises(SystemExit, match="no Tauri updater artefacts"):
-            genlatest.main(
-                ["--artefacts", str(artefacts), "--tag", "v1.0.0", "--out", str(out)]
-            )
+            genlatest.main(["--artefacts", str(artefacts), "--tag", "v1.0.0", "--out", str(out)])

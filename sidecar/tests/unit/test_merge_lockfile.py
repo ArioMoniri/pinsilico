@@ -107,7 +107,9 @@ class TestMerge:
     def test_applies_linux_fragment_only_to_linux_platform(self) -> None:
         base = _base()
         out = merge_lockfile.merge(base, {"linux-x86_64": _linux_fragment()})
-        assert out["binaries"]["smina"]["platforms"]["linux-x86_64"]["sha256"].startswith("linux-sha")
+        assert out["binaries"]["smina"]["platforms"]["linux-x86_64"]["sha256"].startswith(
+            "linux-sha"
+        )
         # macOS unchanged
         assert out["binaries"]["smina"]["platforms"]["macos-arm64"]["sha256"].startswith("abc")
         # Windows unchanged (still sentinel)
@@ -153,7 +155,9 @@ class TestMerge:
         }
         out = merge_lockfile.merge(base, {"linux-x86_64": fragment_with_meta})
         # The metadata is ignored (didn't crash, didn't get copied).
-        assert out["binaries"]["smina"]["platforms"]["linux-x86_64"]["sha256"].startswith("linux-sha")
+        assert out["binaries"]["smina"]["platforms"]["linux-x86_64"]["sha256"].startswith(
+            "linux-sha"
+        )
 
     def test_no_fragments_returns_base_copy(self) -> None:
         base = _base()
@@ -172,15 +176,18 @@ class TestMain:
 
         rc = merge_lockfile.main(
             [
-                "--base", str(base_path),
-                "--fragment", f"linux-x86_64={linux_path}",
-                "--out", str(out_path),
+                "--base",
+                str(base_path),
+                "--fragment",
+                f"linux-x86_64={linux_path}",
+                "--out",
+                str(out_path),
             ]
         )
         assert rc == 0
         data = json.loads(out_path.read_text())
-        assert (
-            data["binaries"]["smina"]["platforms"]["linux-x86_64"]["sha256"].startswith("linux-sha")
+        assert data["binaries"]["smina"]["platforms"]["linux-x86_64"]["sha256"].startswith(
+            "linux-sha"
         )
 
     def test_aborts_when_base_missing(self, tmp_path: Path) -> None:

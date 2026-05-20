@@ -30,9 +30,7 @@ class TestFfmpegExe:
         b = ffmpeg_exe()
         assert a is b
 
-    def test_raises_when_imageio_ffmpeg_uninstalled(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_raises_when_imageio_ffmpeg_uninstalled(self, monkeypatch: pytest.MonkeyPatch) -> None:
         ffmpeg_exe.cache_clear()
         monkeypatch.setattr(media, "_get_ffmpeg_exe", None)
         with pytest.raises(FfmpegUnavailableError, match="imageio-ffmpeg"):

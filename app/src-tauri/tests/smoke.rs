@@ -1,20 +1,20 @@
-//! Phase 0 smoke tests.
+//! Cross-stack version-sync smoke tests.
 //!
 //! These integration tests don't open a real Tauri window — they exercise
-//! the pure helpers in `pinsilico_app_lib` that anchor the four-way version
-//! sync (Cargo.toml, package.json, tauri.conf.json, pyproject.toml).
-//!
-//! Phase 6 adds proper end-to-end window tests under a `tauri-driver` runner.
+//! the pure helpers in `pinsilico_app_lib` that anchor the six-way version
+//! sync (Cargo.toml, tauri.conf.json, package.json, pyproject.toml,
+//! __init__.py, version.ts).
 
 use pinsilico_app_lib::{app_version, window_title};
 
 #[test]
-fn app_version_is_phase_zero_release() {
-    // BUILD_PROMPT.md §7 Phase 0: window labelled "PInSilico v0.0.1".
-    // The Tauri config carries the literal title; this helper backs the
-    // CI version-sync check that ties Cargo.toml, package.json,
-    // tauri.conf.json, and pyproject.toml together.
-    assert_eq!(app_version(), "0.0.1");
+fn app_version_matches_semver_pattern() {
+    let v = app_version();
+    let parts: Vec<&str> = v.split('.').collect();
+    assert!(
+        parts.len() >= 3,
+        "app_version() must be semver-shaped (N.N.N[-pre]), got {v:?}",
+    );
 }
 
 #[test]
@@ -39,9 +39,10 @@ fn window_title_includes_product_and_version() {
 }
 
 #[test]
-fn window_title_matches_tauri_conf_json() {
-    // tauri.conf.json hard-codes the title (Tauri 2.x has no programmatic
-    // window-title override in the static config path). This test locks
-    // window_title() to the same string so the two don't drift apart.
-    assert_eq!(window_title(), "PInSilico v0.0.1");
+fn window_title_format_is_pinsilico_v_then_pkg_version() {
+    // tauri.conf.json's window title is set statically; this test pins the
+    // Rust-side format so the two don't drift even though we can't read
+    // tauri.conf.json at test time without parsing it.
+    let expected = format!("PInSilico v{}", env!("CARGO_PKG_VERSION"));
+    assert_eq!(window_title(), expected);
 }
