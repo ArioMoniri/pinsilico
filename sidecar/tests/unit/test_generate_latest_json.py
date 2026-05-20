@@ -56,12 +56,12 @@ class TestDiscoverPlatforms:
         assert platforms["darwin-aarch64"]["signature"] == "sig-arm64"
 
     def test_picks_up_linux(self, tmp_path: Path) -> None:
-        self._fake_artefact(tmp_path, "pinsilico_1.0.0_amd64.AppImage.tar.gz", sig="sig-linux")
+        self._fake_artefact(tmp_path, "PInSilico_1.0.0_amd64.AppImage", sig="sig-linux")
         platforms = genlatest.discover_platforms(tmp_path)
         assert "linux-x86_64" in platforms
 
     def test_picks_up_windows(self, tmp_path: Path) -> None:
-        self._fake_artefact(tmp_path, "PInSilico_1.0.0_x64-setup.nsis.zip", sig="sig-win")
+        self._fake_artefact(tmp_path, "PInSilico_1.0.0_x64_en-US.msi", sig="sig-win")
         platforms = genlatest.discover_platforms(tmp_path)
         assert "windows-x86_64" in platforms
 
@@ -78,8 +78,8 @@ class TestDiscoverPlatforms:
 
     def test_picks_up_multiple_platforms(self, tmp_path: Path) -> None:
         self._fake_artefact(tmp_path, "PInSilico_1.0.0_aarch64.app.tar.gz")
-        self._fake_artefact(tmp_path, "pinsilico_1.0.0_amd64.AppImage.tar.gz")
-        self._fake_artefact(tmp_path, "PInSilico_1.0.0_x64-setup.nsis.zip")
+        self._fake_artefact(tmp_path, "PInSilico_1.0.0_amd64.AppImage")
+        self._fake_artefact(tmp_path, "PInSilico_1.0.0_x64_en-US.msi")
         platforms = genlatest.discover_platforms(tmp_path)
         assert set(platforms) == {"darwin-aarch64", "linux-x86_64", "windows-x86_64"}
 
