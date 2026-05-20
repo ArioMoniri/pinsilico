@@ -9,18 +9,16 @@
     "fpocket": {
       "platforms": {
         "linux-x86_64": {
-          "_source_build": true,
-          "_build_script": "scripts/build_fpocket_from_source.sh",
-          "_reason": "fpocket has no prebuilt binary release; build from source."
+          "_unavailable": true,
+          "_reason": "fpocket has no working build pipeline in CI yet (v4.1.3 bundled qhull tree has broken include paths). Install manually: apt install libqhull-dev libnetcdf-dev && git clone + make. Set FPOCKET_BIN env var if installing in a non-PATH location."
         },
         "macos-arm64": {
-          "_source_build": true,
-          "_build_script": "scripts/build_fpocket_from_source.sh",
-          "_reason": "fpocket has no prebuilt binary release; build from source."
+          "_unavailable": true,
+          "_reason": "No Homebrew formula and the upstream source build fails in CI. Install manually with brew install qhull netcdf + clone fpocket repo + sed-patch + make. Or use the bundled example-kit pocket for demos."
         },
         "windows-x86_64": {
           "_unavailable": true,
-          "_reason": "fpocket Makefile is POSIX-only; Windows users skip pocket detection."
+          "_reason": "fpocket Makefile is POSIX-only; Windows users skip pocket detection entirely."
         }
       },
       "version": "4.1.3"

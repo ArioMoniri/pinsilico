@@ -243,9 +243,15 @@ export function Workspace(): JSX.Element {
         setStatusMessage(`Detected ${result.pockets.length} pocket(s) in ${proteinId}.`);
       })
       .catch((e: unknown) => {
-        setStatusMessage(
-          e instanceof ApiError ? `${e.code}: ${e.message}` : "Pocket detection failed.",
-        );
+        if (e instanceof ApiError && e.message.includes("fpocket binary not found")) {
+          setStatusMessage(
+            "fpocket isn't bundled in this release. Install it manually (apt/brew + build from source) and set FPOCKET_BIN, or use the Example kit which ships a pre-detected pocket.",
+          );
+        } else {
+          setStatusMessage(
+            e instanceof ApiError ? `${e.code}: ${e.message}` : "Pocket detection failed.",
+          );
+        }
       })
       .finally(() => {
         setDetectingProteinId(null);

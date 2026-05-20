@@ -64,30 +64,27 @@ build_fpocket_from_source() {
     tar xf src.tar.gz
     cd "fpocket-${FPOCKET_VERSION}"
 
-    # The Makefile baked in v4.1.3 has broken include paths for its
-    # own bundled qhull tree (qvoronoi.c includes libqhull/libqhull.h
-    # which doesn't resolve). Repoint the include and link flags at
-    # the system qhull installed above so the bundled qhull never
-    # compiles. macOS clang doesn't accept -pg (gprof), strip it.
+    # The Makefile baked in v4.1.3 still tries to compile the bundled
+    # qhull sources (qvoronoi.c / qconvex.c) which `#include
+    # <libqhull/libqhull.h>` — a path that doesn't resolve without
+    # an extra -I src/qhull/src. Append BOTH the bundled qhull's
+    # internal include and the system qhull include so the bundled
+    # files compile and link against the system shared lib. macOS
+    # clang doesn't accept `-pg` (gprof); strip it from the Makefile.
     sed -i.bak \
-        -e "s|-Isrc/qhull/src|$include_flag|g" \
-        -e "s|-Lsrc/qhull/lib|$link_flag|g" \
+        -e "s|-Isrc/qhull/src|-Isrc/qhull/src ${include_flag}|g" \
+        -e "s|-Lsrc/qhull/lib|-Lsrc/qhull/lib ${link_flag}|g" \
         -e 's|-pg||g' \
         makefile
 
-    # Skip recursing into src/qhull entirely — both submake invocations
-    # in the top-level Makefile reference the qhull subdir; comment
-    # those lines out so make never enters the broken tree.
-    sed -i.bak -E '/cd src\/qhull/s|^|# disabled-qhull: |' makefile
-
-    echo "==> building fpocket (system qhull)"
+    echo "==> building fpocket (system qhull link, bundled qhull compile)"
     make -j "$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu || echo 2)" \
-        LFLAGS="-lqhull_r -lm -lnetcdf -lpthread" 2>&1 | tail -50 || {
+        LFLAGS="-lqhull_r -lm -lnetcdf -lpthread" 2>&1 | tail -60 || {
         # Some qhull installations (older Ubuntu) only ship plain
         # libqhull, no _r variant. Retry without the suffix.
         make clean || true
         make -j "$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu || echo 2)" \
-            LFLAGS="-lqhull -lm -lnetcdf -lpthread" 2>&1 | tail -50
+            LFLAGS="-lqhull -lm -lnetcdf -lpthread" 2>&1 | tail -60
     }
 
     if [ ! -f bin/fpocket ]; then

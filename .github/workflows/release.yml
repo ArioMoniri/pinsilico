@@ -97,15 +97,13 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --no-frozen-lockfile
 
-      - name: Provision fpocket (macOS + Linux)
-        if: matrix.os != 'windows-latest'
-        shell: bash
-        run: bash scripts/build_fpocket_from_source.sh
-        # fpocket has no prebuilt binary release — install via Homebrew
-        # on macOS and compile-with-system-qhull on Linux. The lockfile
-        # marks Windows as _unavailable; the step is skipped there.
-        # Must run BEFORE the verify step below so the _source_build
-        # entry's expected file is in place.
+      # fpocket source-build step removed for v1.7.0+ — see the
+      # lockfile entry: v4.1.3's bundled qhull tree has broken include
+      # paths and Homebrew has no `fpocket` formula. Users install
+      # fpocket manually (apt-get or build from source) and set
+      # FPOCKET_BIN, OR rely on the bundled example-kit pocket for
+      # demos. `build_fpocket_from_source.sh` is kept in tree for
+      # developers who want a documented manual build path.
 
       - name: Fetch + verify bundled binaries
         shell: bash
