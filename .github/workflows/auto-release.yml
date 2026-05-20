@@ -24,6 +24,7 @@ on:
 
 permissions:
   contents: write    # required to push the new tag
+  actions: write     # required to dispatch release.yml against the new tag
 
 jobs:
   tag-if-bumped:
