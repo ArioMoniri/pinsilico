@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # Build AutoDock Vina from source.
 #
-# Used on platforms where upstream doesn't ship a native prebuilt binary
-# (notably macOS arm64 as of Vina v1.2.5 — the GitHub release only has
-# linux-x86_64 and Windows binaries). The C++ source builds cleanly in
-# ~30 seconds on Apple Silicon with standard developer tooling.
+# NOTE FOR v1.0.0: release.yml does NOT call this on macOS — the macOS
+# arm64 build is marked _unavailable in scripts/binaries.lock.json because
+# Vina v1.2.5 source requires Boost <= 1.84 (Homebrew only ships 1.85+,
+# which removed boost/filesystem/convenience.hpp). macOS users get
+# docking via smina (a Vina fork with the same scoring function);
+# SminaVinaAdapter speaks both engines.
+#
+# This script is kept for:
+#   - Manual local builds on platforms where developers can install
+#     Boost 1.84 from source / older Homebrew bottle / conda.
+#   - Linux source builds where the apt-installed Boost is still <= 1.84.
 #
 # Outputs sidecar/resources/binaries/vina, matching the layout
 # fetch_binaries.py would produce on platforms that do ship binaries.
-#
-# Build prereqs (macOS arm64):
-#   - Xcode Command Line Tools (`xcode-select --install`)
-#   - Boost: `brew install boost`
-#   - swig: `brew install swig`
 #
 # Build prereqs (Linux):
 #   - g++, make, libboost-dev, libboost-system-dev, libboost-thread-dev,
@@ -85,10 +87,10 @@ if [ ! -f Makefile ]; then
     exit 1
 fi
 
-echo "==> building in $BUILD_DIR (this takes ~30 s)"
-# Vina's bundled Makefile pins `BASE=/usr/local` with `=` (not `?=`), so an
-# exported env var is ignored — `BASE=` must be passed on the make command
-# line to override. On Apple Silicon, Homebrew lives under /opt/homebrew.
+echo "==> building in $BUILD_DIR (~30 s on Apple Silicon / Linux)"
+# Vina's bundled Makefile pins `BASE=/usr/local` with `=` (not `?=`), so
+# `BASE=` must be passed on the make command line to override (env var is
+# ignored). On Apple Silicon, Homebrew lives under /opt/homebrew.
 MAKE_BASE=""
 if [ "$(uname -s)" = "Darwin" ] && [ -d "/opt/homebrew/include/boost" ]; then
     MAKE_BASE="BASE=/opt/homebrew"

@@ -87,13 +87,12 @@ jobs:
             libsoup-3.0-dev \
             libjavascriptcoregtk-4.1-dev
 
-      - name: Install Vina source-build prereqs (macOS only)
-        if: matrix.os == 'macos-14'
-        run: brew install boost swig
-
-      - name: Build Vina from source (macOS arm64)
-        if: matrix.os == 'macos-14'
-        run: bash scripts/build_vina_from_source.sh
+      # NOTE: macOS arm64 does not bundle Vina in v1.0.0 — Homebrew only
+      # ships Boost 1.85+ which removed boost/filesystem/convenience.hpp
+      # (Vina v1.2.5 source needs <= 1.84). macOS users get docking via
+      # smina, a Vina fork with the same scoring function and a
+      # drop-in-compatible CLI; SminaVinaAdapter speaks both engines.
+      # Tracked for v1.0.1 once we vendor Boost 1.84 in CI.
 
       - name: Install frontend deps
         run: pnpm install --no-frozen-lockfile

@@ -56,9 +56,8 @@
           "url": "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.5/vina_1.2.5_linux_x86_64"
         },
         "macos-arm64": {
-          "_build_script": "scripts/build_vina_from_source.sh",
-          "_reason": "AutoDock Vina v1.2.5 has no native macOS arm64 binary in its GitHub release. Build with scripts/build_vina_from_source.sh (~30 s; requires `brew install boost swig`). release.yml runs this automatically on the macos-14 matrix job before tauri build.",
-          "_source_build": true
+          "_unavailable": true,
+          "_reason": "AutoDock Vina v1.2.5 has no native macOS arm64 binary in its GitHub release, and the source build needs Boost <= 1.84 (Homebrew only ships 1.85+ which removed boost/filesystem/convenience.hpp). macOS users get docking via smina, a Vina fork with the same scoring function and a drop-in-compatible CLI; the SminaVinaAdapter (sidecar/pinsilico/docking/smina_vina.py) speaks both engines. Re-add native vina/macos-arm64 in v1.0.1 once we vendor Boost 1.84 in CI or upstream ships an arm64 binary."
         },
         "windows-x86_64": {
           "sha256": "b5a23b226ee5dc1b028df04082d13a7b0e5b9b12b988bbcf9498cb351e20b38f",
