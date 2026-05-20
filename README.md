@@ -26,6 +26,12 @@
   <sub>macOS arm64 (.dmg) · Windows x64 (.msi) · Linux x86_64 (.AppImage) · Also available: <a href="https://github.com/ArioMoniri/pinsilico/releases/latest">.deb · .rpm · NSIS .exe</a></sub>
 </p>
 
+> **🍎 macOS first launch:** the build isn't notarised yet, so macOS quarantines the bundled sidecar binary and you'll see *Sidecar offline* on first open. After dragging `PInSilico.app` to `/Applications`, run this in Terminal **once**:
+> ```bash
+> xattr -dr com.apple.quarantine /Applications/PInSilico.app
+> ```
+> Then relaunch the app. The toolbar pill should turn green.
+
 ---
 
 ## ✨ What it does

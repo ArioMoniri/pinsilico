@@ -88,21 +88,33 @@ export function FixerDialog({
           <h3 style={h3Style}>What this usually means</h3>
           <ul style={ulStyle}>
             <li>
+              <strong>macOS Gatekeeper quarantined the bundled sidecar</strong> — by far the most
+              common cause on a freshly-downloaded <code style={codeStyle}>.dmg</code>. The .app is
+              unsigned (no Apple Developer ID), so macOS silently kills the sidecar binary on first
+              spawn. Open Terminal and run:
+              <pre style={cmdBoxStyle}>
+                xattr -dr com.apple.quarantine /Applications/PInSilico.app
+              </pre>
+              Quit + relaunch the app, then click <em>Retry</em>.
+            </li>
+            <li>
               <strong>Stale dev build:</strong> the Rust shell couldn&apos;t find the bundled
               sidecar binary. From a checkout, run{" "}
               <code style={codeStyle}>python scripts/build_sidecar.py</code> once, then click{" "}
-              <em>Retry</em> below (no app restart needed if the spawn succeeds on the second try).
+              <em>Retry</em>.
             </li>
             <li>
               <strong>PyInstaller bundle is broken:</strong> the spawned sidecar exited before
               emitting its four-line banner. Rebuild with the same command above, then retry.
             </li>
-            <li>
-              <strong>macOS quarantined the bundled binary:</strong> first launch of a
-              freshly-downloaded <code style={codeStyle}>.dmg</code> can stall the sidecar behind
-              Gatekeeper. Quit and reopen the app once.
-            </li>
           </ul>
+          <p style={hintStyle}>
+            To confirm the sidecar binary itself is fine, run it directly from Terminal:
+            <code style={codeStyle}>
+              /Applications/PInSilico.app/Contents/MacOS/pinsilico-sidecar
+            </code>
+            . You should see four <code style={codeStyle}>PINSILICO_*=...</code> lines.
+          </p>
         </section>
 
         {outcome === "success" && <p style={successStyle}>✓ Sidecar reconnected.</p>}
@@ -213,6 +225,28 @@ const codeStyle: React.CSSProperties = {
   borderRadius: 3,
   fontFamily: "ui-monospace, monospace",
   fontSize: "0.82rem",
+};
+
+const cmdBoxStyle: React.CSSProperties = {
+  background: "#0a0c10",
+  border: "1px solid #2a2f38",
+  borderRadius: 4,
+  padding: "0.5rem 0.7rem",
+  marginTop: "0.4rem",
+  marginBottom: "0.2rem",
+  color: "#e6e9ef",
+  fontFamily: "ui-monospace, monospace",
+  fontSize: "0.78rem",
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-all",
+  userSelect: "all",
+};
+
+const hintStyle: React.CSSProperties = {
+  color: "#8b9097",
+  fontSize: "0.78rem",
+  marginTop: "0.5rem",
+  lineHeight: 1.5,
 };
 
 const primaryButtonStyle: React.CSSProperties = {
