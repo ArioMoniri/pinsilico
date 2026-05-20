@@ -13,11 +13,18 @@ Tauri produces a working `.dmg` either way. You have to decide between:
 | Cost | Apple Developer Program: **$99 / year** | Free |
 | Setup time | ~30 min, one-time | None |
 | First-launch UX | Clean, no warning | "macOS cannot verify the developer" warning. Right-click → Open → confirm once. After that, normal launch forever. |
-| What CI needs | **Six** repo secrets | Nothing |
+| What CI needs | **Three** repo secrets (cert, cert password, app-specific password). Team ID, signing identity, and Apple ID are hardcoded in `release.yml` for this repo. | Nothing |
 
 Both work. Choose A if you're shipping to non-technical users; B if you're shipping to a research lab where everyone can click past a Gatekeeper warning.
 
-> **Important:** `APPLE_ID` + `APPLE_PASSWORD` + `APPLE_TEAM_ID` alone are **not enough** for notarization. They're the *submission* credentials. You also need the signing certificate (`APPLE_CERTIFICATE` + `APPLE_CERTIFICATE_PASSWORD` + `APPLE_SIGNING_IDENTITY`) to have anything to submit. The `.dmg` ships unsigned without the cert; the three notarization secrets become dead weight on their own.
+> **Important:** Without a signing certificate, the three notarization credentials (Apple ID / password / Team ID) can't sign anything; the `.dmg` ships unsigned. The certificate (`APPLE_CERTIFICATE` + `APPLE_CERTIFICATE_PASSWORD`) is the one piece you can't skip if you want Option A.
+
+> **Baked-in values for this repo's `release.yml`:** the workflow already hardcodes the three public-by-design identifiers so you don't have to add them as secrets:
+> - `APPLE_TEAM_ID: FF68N39FU5`
+> - `APPLE_SIGNING_IDENTITY: Developer ID Application: Ariorad Moniri (FF68N39FU5)`
+> - `APPLE_ID: ariomoniri@icloud.com`
+>
+> Verify the signing identity matches your actual certificate after import (Step 7 below). If your cert's Common Name is anything else, update `release.yml`'s top-level `env:` block.
 
 ### Windows — unsigned by design
 
@@ -29,7 +36,7 @@ No signing needed. `.AppImage` / `.deb` are unsigned by convention; users trust 
 
 ---
 
-## 0a. macOS Option A — Signed + Notarized (the full 6-secret setup)
+## 0a. macOS Option A — Signed + Notarized (3-secret setup with this repo's baked-in defaults)
 
 Skip this entire section if you chose Option B (unsigned).
 
@@ -78,31 +85,38 @@ Now you have the encoded cert on your clipboard, ready to paste into a secret.
 1. <https://developer.apple.com/account> → **Membership Details**.
 2. Copy the 10-character **Team ID** (e.g. `AB12CD34EF`).
 
-### Step 7 — Find your signing identity string
+### Step 7 — Verify your signing identity string
 
-In **Keychain Access** the certificate shows up as something like:
+The workflow already has the identity baked in:
 
 ```
-Developer ID Application: Ario Moniri (AB12CD34EF)
+Developer ID Application: Ariorad Moniri (FF68N39FU5)
 ```
 
-Copy that **exact** string — that's your `APPLE_SIGNING_IDENTITY`.
+Verify your imported certificate's Common Name matches **exactly** by running:
 
-### Step 8 — Add all SIX secrets to GitHub
+```bash
+security find-identity -v -p codesigning | grep "Developer ID Application"
+```
+
+If the output line differs in any way (different spelling, missing team-ID parens, different case) — copy what the command actually printed and update the `APPLE_SIGNING_IDENTITY:` line in `.github/workflows/release.yml`'s top-level `env:` block.
+
+### Step 8 — Add the THREE secrets to GitHub
+
+The team ID, signing identity, and Apple ID are already baked into `release.yml` for this repo, so you only need three secrets.
 
 1. <https://github.com/ArioMoniri/pinsilico> → **Settings** (top-right) → **Secrets and variables** → **Actions**.
-2. Click **New repository secret** six times:
+2. Click **New repository secret** three times:
 
 | Name | Value |
 |---|---|
 | `APPLE_CERTIFICATE` | The base64 string from Step 4 (entire clipboard contents) |
 | `APPLE_CERTIFICATE_PASSWORD` | The `<P12_PASSWORD>` from Step 3 |
-| `APPLE_SIGNING_IDENTITY` | The full identity string from Step 7 |
-| `APPLE_ID` | Your Apple ID email |
 | `APPLE_PASSWORD` | The 19-char app-specific password from Step 5 |
-| `APPLE_TEAM_ID` | The 10-char team ID from Step 6 |
 
-Done. `release.yml` reads all six on every macOS matrix job.
+Done. `release.yml` reads the three secrets on every macOS matrix job and combines them with the baked-in identifiers.
+
+> **If you ever want to rotate the Apple ID, Team ID, or signing identity** — edit the top-level `env:` block in `release.yml` directly (those are not secrets, just defaults).
 
 ### How Option A's build actually works (so you can debug failures)
 

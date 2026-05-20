@@ -19,6 +19,19 @@ env:
   NODE_VERSION: "20"
   RUST_TOOLCHAIN: "stable"
   PNPM_VERSION: "9"
+  # ---------------------------------------------------------------- macOS
+  # These three are baked in as workflow defaults because they're public
+  # information by design:
+  #   - APPLE_TEAM_ID is embedded in every binary this developer ships.
+  #   - APPLE_SIGNING_IDENTITY is the Common Name of the public certificate.
+  #   - APPLE_ID is the email associated with the Apple Developer account
+  #     (the user accepted this being public when hardcoding here).
+  # The three truly-secret values (APPLE_CERTIFICATE,
+  # APPLE_CERTIFICATE_PASSWORD, APPLE_PASSWORD) come from repo secrets
+  # below in the build step.
+  APPLE_TEAM_ID: "FF68N39FU5"
+  APPLE_SIGNING_IDENTITY: "Developer ID Application: Ariorad Moniri (FF68N39FU5)"
+  APPLE_ID: "ariomoniri@icloud.com"
 
 jobs:
   build:
@@ -95,19 +108,16 @@ jobs:
         working-directory: app
         run: pnpm tauri build
         env:
-          # macOS signing + notarization. ALL SIX SECRETS are required for
-          # a signed+notarized build. Leave any unset to ship unsigned —
-          # tauri-build detects the absence and skips signing automatically.
-          # See docs/releasing.md for step-by-step setup.
-          #
-          # Signing identity + cert:
+          # APPLE_TEAM_ID / APPLE_SIGNING_IDENTITY / APPLE_ID are baked
+          # in at the workflow level above (public-by-design). The three
+          # truly-secret values below come from repo secrets — add them
+          # under Settings → Secrets and variables → Actions. Leave the
+          # certificate empty to ship unsigned (tauri-build detects the
+          # absence and skips signing automatically); users will then see
+          # a one-time Gatekeeper warning on first launch.
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          # Notarization submission credentials:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           # Windows builds are NOT code-signed in this workflow by design.
           # Users will see a SmartScreen warning on first launch (one click
           # past "More info → Run anyway"). Add Authenticode signing later
