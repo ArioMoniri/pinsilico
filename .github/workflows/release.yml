@@ -97,6 +97,16 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --no-frozen-lockfile
 
+      - name: Provision fpocket (macOS + Linux)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: bash scripts/build_fpocket_from_source.sh
+        # fpocket has no prebuilt binary release — install via Homebrew
+        # on macOS and compile-with-system-qhull on Linux. The lockfile
+        # marks Windows as _unavailable; the step is skipped there.
+        # Must run BEFORE the verify step below so the _source_build
+        # entry's expected file is in place.
+
       - name: Fetch + verify bundled binaries
         shell: bash
         run: python3 scripts/fetch_binaries.py --verify
@@ -106,14 +116,6 @@ jobs:
         # populated SHA256s. The full fetch (not verify) lands here
         # once the lockfile is real.
         continue-on-error: true
-
-      - name: Build fpocket from source (macOS + Linux)
-        if: matrix.os != 'windows-latest'
-        shell: bash
-        run: bash scripts/build_fpocket_from_source.sh
-        # fpocket has no prebuilt binary release — we always compile
-        # from source on macOS + Linux. The lockfile marks Windows as
-        # _unavailable. Skipped on Windows entirely.
 
       - name: Build sidecar
         shell: bash
