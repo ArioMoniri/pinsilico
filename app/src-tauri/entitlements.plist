@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hardened-runtime entitlements for the macOS bundle.
+
+  The four `com.apple.security.cs.*` entries below are required for the
+  PyInstaller-built sidecar to load under hardened runtime:
+
+  * disable-library-validation — PyInstaller extracts Python.framework
+    to a tempdir at startup. That framework is not signed by our Team
+    ID, and the default library-validation check forbids loading any
+    library whose Team ID doesn't match the main process. Without this
+    entitlement dyld rejects the framework with "mapping process and
+    mapped file (non-platform) have different Team IDs".
+
+  * allow-unsigned-executable-memory — PyInstaller's bootloader memory-
+    maps unpacked code pages as executable; hardened runtime forbids
+    writable+executable pages without this entitlement.
+
+  * allow-dyld-environment-variables — PyInstaller relies on DYLD_*
+    env vars to locate the unpacked Python framework.
+
+  * allow-jit — some bundled Python C extensions JIT code (numpy MKL
+    builds, certain rdkit paths) and need this to mmap RWX memory.
+
+  We deliberately leave App Sandbox disabled (no `com.apple.security.app-
+  sandbox` key). The sidecar shells out to bundled obabel / smina / vina
+  binaries and reads/writes temp files — both incompatible with the
+  sandbox. The hardened runtime + Developer ID + notarisation provide
+  the security boundary Apple actually requires for distribution.
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <true/>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+</dict>
+</plist>

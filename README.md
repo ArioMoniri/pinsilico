@@ -9,15 +9,15 @@
 ## 📥 Download
 
 <p align="center">
-  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.4.0_aarch64.dmg">
+  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.5.0_aarch64.dmg">
     <img alt="Download for macOS" src="https://img.shields.io/badge/Download_for-macOS-000000?style=for-the-badge&logo=apple&logoColor=white" height="48">
   </a>
   &nbsp;
-  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.4.0_x64_en-US.msi">
+  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.5.0_x64_en-US.msi">
     <img alt="Download for Windows" src="https://img.shields.io/badge/Download_for-Windows-000000?style=for-the-badge&logo=windows&logoColor=white" height="48">
   </a>
   &nbsp;
-  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.4.0_amd64.AppImage">
+  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.5.0_amd64.AppImage">
     <img alt="Download for Linux" src="https://img.shields.io/badge/Download_for-Linux-000000?style=for-the-badge&logo=linux&logoColor=white" height="48">
   </a>
 </p>
@@ -26,11 +26,7 @@
   <sub>macOS arm64 (.dmg) · Windows x64 (.msi) · Linux x86_64 (.AppImage) · Also available: <a href="https://github.com/ArioMoniri/pinsilico/releases/latest">.deb · .rpm · NSIS .exe</a></sub>
 </p>
 
-> **🍎 macOS first launch:** the build isn't notarised yet, so macOS quarantines the bundled sidecar binary and you'll see *Sidecar offline* on first open. After dragging `PInSilico.app` to `/Applications`, run this in Terminal **once**:
-> ```bash
-> xattr -dr com.apple.quarantine /Applications/PInSilico.app
-> ```
-> Then relaunch the app. The toolbar pill should turn green.
+> **🍎 macOS:** v1.5.0+ ships with hardened-runtime entitlements (`com.apple.security.cs.disable-library-validation` and friends) so the bundled PyInstaller sidecar can load its embedded Python framework. If you upgraded from ≤ v1.4.0 and still see *Sidecar offline*, delete the old `/Applications/PInSilico.app`, drag the new one over fresh, and relaunch.
 
 ---
 
@@ -80,6 +76,7 @@ make ci        # 🎯 the exact gates GitHub Actions runs
 | ✅ | 9 + ligand library + sim trajectory | [v1.2.0](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.2.0) | Real Mol\* atomistic viewer · LigandPanel + 5 sources · fpocket detection wiring · /sim/run trajectory · `.pinsilico` save/load |
 | ✅ | All deferred phases | [v1.3.0](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.3.0) | Live SSE sim streaming · Smina/Vina docking dispatch · obabel wrappers · WebGPU/WebGL2 settings toggle |
 | ✅ | UX: fixer + example kit | [v1.4.0](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.4.0) | Clickable Sidecar pill → FixerDialog with Retry · one-click Example button loads 1CRN + aspirin + caffeine |
+| ✅ | macOS hardened-runtime fix | [v1.5.0](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.5.0) | `disable-library-validation` entitlement so PyInstaller's bundled `Python.framework` can load under hardened runtime + notarisation |
 
 ## 🏗️ Architecture
 
