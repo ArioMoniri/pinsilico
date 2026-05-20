@@ -38,8 +38,18 @@ pub fn window_title() -> String {
 /// is closed. The window title and identifier are configured in
 /// `tauri.conf.json`. Panics on a Tauri config error (developer bug — no
 /// recovery path exists).
+///
+/// Wires in two plugins required for the auto-updater:
+/// * `tauri_plugin_updater` — checks the `endpoints` listed in
+///   `tauri.conf.json`'s `plugins.updater` block, verifies the signed
+///   manifest against the embedded public key, and downloads + applies
+///   the new bundle.
+/// * `tauri_plugin_process` — exposes `relaunch()` to the webview so the
+///   frontend can restart the app after a successful install.
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|_app| Ok(()))
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");

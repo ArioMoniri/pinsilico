@@ -118,18 +118,24 @@ jobs:
         env:
           # APPLE_TEAM_ID / APPLE_SIGNING_IDENTITY / APPLE_ID are baked
           # in at the workflow level above (public-by-design). The three
-          # truly-secret values below come from repo secrets — add them
-          # under Settings → Secrets and variables → Actions. Leave the
-          # certificate empty to ship unsigned (tauri-build detects the
-          # absence and skips signing automatically); users will then see
-          # a one-time Gatekeeper warning on first launch.
+          # truly-secret Apple values below come from repo secrets — add
+          # them under Settings → Secrets and variables → Actions. Leave
+          # the certificate empty to ship unsigned; users will see a one-
+          # time Gatekeeper warning on first launch.
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          # Windows builds are NOT code-signed in this workflow by design.
-          # Users will see a SmartScreen warning on first launch (one click
-          # past "More info → Run anyway"). Add Authenticode signing later
-          # if you want to remove that warning.
+          # Tauri auto-updater signing key. REQUIRED for the updater to
+          # work — without it tauri-build emits unsigned bundles and the
+          # updater rejects them at install time. Generate with
+          # `pnpm tauri signer generate` once and add the resulting
+          # private key as the secret below; the corresponding public
+          # key goes into tauri.conf.json (plugins.updater.pubkey).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Windows builds are NOT Authenticode-signed in this workflow.
+          # Users will see a SmartScreen warning on first launch (one
+          # click past "More info → Run anyway").
 
       - name: Collect artefacts
         shell: bash
@@ -159,14 +165,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Python (for latest.json generator)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Download all artefacts
         uses: actions/download-artifact@v4
         with:
           path: artefacts
 
+      - name: Generate auto-updater manifest (latest.json)
+        run: |
+          python3 scripts/generate_latest_json.py \
+            --artefacts artefacts \
+            --tag "${GITHUB_REF##*/}" \
+            --out latest.json
+          echo "=== generated latest.json ==="
+          cat latest.json
+
       - name: Publish to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artefacts/**/*
+          files: |
+            artefacts/**/*
+            latest.json
           generate_release_notes: true
           fail_on_unmatched_files: false

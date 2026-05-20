@@ -34,6 +34,60 @@ Both work. Choose A if you're shipping to non-technical users; B if you're shipp
 
 No signing needed. `.AppImage` / `.deb` are unsigned by convention; users trust the SHA256 published in the GitHub Release notes.
 
+### Auto-updater key pair (required for the updater to work)
+
+The Tauri auto-updater plugin verifies downloaded bundles against an embedded public key. **You must generate this once** before the first release, then never rotate the keypair (rotating breaks every shipped installer's update path).
+
+#### Step 1 — Generate the key pair
+
+```bash
+cd app
+pnpm tauri signer generate -w ~/.tauri/pinsilico_updater.key
+```
+
+Set a password when prompted — save it; you'll need it as a GitHub secret below. Output:
+
+* `~/.tauri/pinsilico_updater.key` — **private** key, never commit
+* `~/.tauri/pinsilico_updater.key.pub` — **public** key, paste into config
+
+#### Step 2 — Paste the public key into `tauri.conf.json`
+
+```bash
+cat ~/.tauri/pinsilico_updater.key.pub
+```
+
+Open `app/src-tauri/tauri.conf.json` and replace `REPLACE_ME_WITH_THE_TAURI_UPDATER_PUBLIC_KEY` with the printed value. Commit the change — the public key is safe in the public repo.
+
+#### Step 3 — Add two GitHub secrets
+
+Under **Settings → Secrets and variables → Actions**, add:
+
+| Name | Value |
+|---|---|
+| `TAURI_SIGNING_PRIVATE_KEY` | Contents of `~/.tauri/pinsilico_updater.key` (read with `cat`) |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | The password you chose in Step 1 |
+
+#### Step 4 — Verify the endpoint matches your repo
+
+`tauri.conf.json` already has:
+
+```json
+"endpoints": [
+  "https://github.com/ArioMoniri/pinsilico/releases/latest/download/latest.json"
+]
+```
+
+If you ever fork or rename the repo, edit this. The updater fetches this URL on every check-for-updates call.
+
+#### How it works end-to-end
+
+1. **At build time**, `tauri-build` reads `TAURI_SIGNING_PRIVATE_KEY` + password and signs each `.app.tar.gz` / `.AppImage.tar.gz` / `.msi.zip` bundle. The signature lands in a sibling `.sig` file.
+2. **After the matrix builds**, `release.yml` runs `scripts/generate_latest_json.py` which reads the version from `sidecar/pyproject.toml` (the existing single-source-of-truth), scans the artefacts for `.sig` files, and writes `latest.json`.
+3. **The publish step** uploads `latest.json` alongside the artefacts to the GitHub Release.
+4. **At runtime**, the app calls `@tauri-apps/plugin-updater.check()` which fetches `latest.json`, compares its `version` field to the running app's `CARGO_PKG_VERSION`, verifies the manifest's signature against the embedded `pubkey`, downloads the right bundle for the user's OS, verifies the bundle's signature against `pubkey`, and on success calls `@tauri-apps/plugin-process.relaunch()` to apply the update.
+
+The `latest.json` URL the running app polls is `https://github.com/ArioMoniri/pinsilico/releases/latest/download/latest.json` — GitHub auto-resolves "latest" to the most recent non-pre-release tag, so users on `v1.0.0` automatically pick up `v1.0.1` the moment you tag it.
+
 ---
 
 ## 0a. macOS Option A — Signed + Notarized (3-secret setup with this repo's baked-in defaults)
