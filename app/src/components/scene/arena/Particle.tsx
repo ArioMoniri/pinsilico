@@ -23,14 +23,23 @@ const BOUND_COLOR = new THREE.Color("#ff8a4a");
 export function ParticleSwarm({
   positions,
   bound,
-  particleRadius = 0.6,
+  particleRadius = 1.6,
 }: ParticleSwarmProps): JSX.Element {
   const count = positions.length / 3;
 
-  // Build the instanced mesh once, reuse on every frame.
+  // Build the instanced mesh once, reuse on every frame. The standard
+  // material gets a small emissive lift so the particles read clearly
+  // against the dark Arena background even before the directional
+  // light has a clean angle on them.
   const { mesh, dummy } = useMemo(() => {
-    const geo = new THREE.SphereGeometry(particleRadius, 8, 8);
-    const mat = new THREE.MeshStandardMaterial({ vertexColors: true });
+    const geo = new THREE.SphereGeometry(particleRadius, 12, 12);
+    const mat = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      emissive: new THREE.Color(0x222a36),
+      emissiveIntensity: 0.6,
+      roughness: 0.45,
+      metalness: 0.05,
+    });
     const m = new THREE.InstancedMesh(geo, mat, Math.max(count, 1));
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     return { mesh: m, dummy: new THREE.Object3D() };

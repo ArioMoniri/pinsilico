@@ -318,20 +318,58 @@ export function Workspace(): JSX.Element {
       use_attraction: values.useAttraction,
       mode: values.mode,
     };
+    // Smooth-playback shim: the WKWebView buffers `fetch` body chunks
+    // aggressively, so SSE frames often arrive in a single burst when
+    // the request completes. Without this, the Arena would jump from
+    // the initial cloud straight to the final state and the user sees
+    // "nothing happens" followed by a teleport. We interpolate locally
+    // between the last delivered frame and the new one over ~120 ms
+    // per frame so the swarm always reads as moving, regardless of
+    // how the underlying stream is buffered.
+    let lastFlat: Float32Array = initialFlat;
+    let lastBound: boolean[] = new Array(particles.length).fill(false);
+    let animFrame: number | null = null;
+    let framesSeen = 0;
+
+    const animateTo = (target: Float32Array, bound: boolean[], durationMs: number): void => {
+      if (animFrame !== null) cancelAnimationFrame(animFrame);
+      const start = performance.now();
+      const from = lastFlat;
+      const step = (now: number): void => {
+        const t = Math.min(1, (now - start) / durationMs);
+        const lerp = new Float32Array(target.length);
+        for (let i = 0; i < target.length; i++) {
+          lerp[i] = (from[i] ?? 0) * (1 - t) + (target[i] ?? 0) * t;
+        }
+        setTrajectoryPositions(lerp);
+        if (t < 1) {
+          animFrame = requestAnimationFrame(step);
+        } else {
+          lastFlat = target;
+          lastBound = bound;
+          setTrajectoryBound(bound);
+          animFrame = null;
+        }
+      };
+      animFrame = requestAnimationFrame(step);
+    };
+
     void client
       .simStream(req, (frame) => {
-        // Replace the Arena buffer with the latest frame as it lands.
+        framesSeen += 1;
         const flat = new Float32Array(frame.positions.length * 3);
         frame.positions.forEach(([x, y, z], i) => {
           flat[3 * i] = x;
           flat[3 * i + 1] = y;
           flat[3 * i + 2] = z;
         });
-        setTrajectoryPositions(flat);
-        setTrajectoryBound(frame.bound);
+        animateTo(flat, frame.bound, 120);
       })
       .then((total) => {
-        setStatusMessage(`${total} frames streamed.`);
+        const boundCount = lastBound.filter(Boolean).length;
+        setStatusMessage(
+          `Sim done — ${total} frames over ${framesSeen} updates · ${boundCount}/${particles.length} particles bound`,
+        );
       })
       .catch((e: unknown) => {
         setStatusMessage(e instanceof ApiError ? `${e.code}: ${e.message}` : "Simulation failed.");
