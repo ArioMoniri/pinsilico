@@ -9,9 +9,8 @@
     "fpocket": {
       "platforms": {
         "linux-x86_64": {
-          "_source_build": true,
-          "_build_script": "scripts/build_fpocket_from_source.sh",
-          "_reason": "Installed via apt (ubuntu-latest CI runner) by the build script."
+          "_unavailable": true,
+          "_reason": "Not in Ubuntu 24.04 repos. Install manually: build_fpocket_from_source.sh recipe in tree OR conda install -c bioconda fpocket and set FPOCKET_BIN."
         },
         "macos-arm64": {
           "_unavailable": true,

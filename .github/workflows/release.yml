@@ -97,16 +97,15 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --no-frozen-lockfile
 
-      - name: Provision fpocket (Linux only)
-        if: matrix.os == 'ubuntu-latest'
-        shell: bash
-        run: bash scripts/build_fpocket_from_source.sh
-        # Linux: apt-installs fpocket then copies into
-        # sidecar/resources/binaries/. macOS source-build needs an
-        # arm64 libmolfile_plugin.a (not in fpocket's tree); the
-        # script prints manual-install instructions and exits 0 so
-        # macOS users see "fpocket not available" in-app rather than
-        # a confusing CI failure. Windows: not supported by fpocket.
+      # fpocket isn't bundled by CI on any platform — `fpocket` isn't
+      # in Ubuntu 24.04 repos, Homebrew has no formula, and the
+      # upstream source build needs an arm64 libmolfile_plugin.a that
+      # isn't in fpocket's tree. Users who want pocket detection
+      # install fpocket manually + set $FPOCKET_BIN; users who just
+      # want a demo use the Example kit's pre-detected pocket. The
+      # in-app pocket-detection error surfaces this clearly.
+      # `scripts/build_fpocket_from_source.sh` stays in tree as a
+      # documented manual recipe.
 
       - name: Fetch + verify bundled binaries
         shell: bash
