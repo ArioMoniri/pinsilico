@@ -16,6 +16,7 @@ import { Toolbar, type SidecarStatus } from "./Toolbar";
 import { StatusBar } from "./StatusBar";
 import { Viewport } from "./Viewport";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { ResultsCard } from "./ResultsCard";
 import { AddProteinDialog } from "./dialogs/AddProteinDialog";
 import { AddLigandDialog } from "./dialogs/AddLigandDialog";
 import { DockingDialog } from "./dialogs/DockingDialog";
@@ -58,7 +59,12 @@ export function Workspace(): JSX.Element {
   const [dockingOpen, setDockingOpen] = useState(false);
   const [fixerOpen, setFixerOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [, setLastResult] = useState<FastForwardResponse | null>(null);
+  const [lastFastForward, setLastFastForward] = useState<FastForwardResponse | null>(null);
+  const [lastRun, setLastRun] = useState<{
+    framesExecuted: number;
+    boundCount: number;
+    particleCount: number;
+  } | null>(null);
   const [detectingProteinId, setDetectingProteinId] = useState<string | null>(null);
   const [trajectoryPositions, setTrajectoryPositions] = useState<Float32Array | null>(null);
   const [trajectoryBound, setTrajectoryBound] = useState<boolean[]>([]);
@@ -367,6 +373,11 @@ export function Workspace(): JSX.Element {
       })
       .then((total) => {
         const boundCount = lastBound.filter(Boolean).length;
+        setLastRun({
+          framesExecuted: total,
+          boundCount,
+          particleCount: particles.length,
+        });
         setStatusMessage(
           `Sim done — ${total} frames over ${framesSeen} updates · ${boundCount}/${particles.length} particles bound`,
         );
@@ -412,7 +423,7 @@ export function Workspace(): JSX.Element {
         n_events: values.iterations,
       })
       .then((result) => {
-        setLastResult(result);
+        setLastFastForward(result);
         const top = Object.entries(result.counts).sort(([, a], [, b]) => b - a)[0];
         setStatusMessage(
           top !== undefined
@@ -467,6 +478,14 @@ export function Workspace(): JSX.Element {
           <ErrorBoundary label="3D viewport">
             <Viewport positions={trajectoryPositions} bound={trajectoryBound} />
           </ErrorBoundary>
+          <ResultsCard
+            fastForward={lastFastForward}
+            run={lastRun}
+            onDismiss={() => {
+              setLastFastForward(null);
+              setLastRun(null);
+            }}
+          />
         </main>
 
         <aside style={rightPanelStyle}>

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "PInSilico",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "identifier": "com.ariomoniri.pinsilico",
   "build": {
     "beforeDevCommand": "pnpm --filter pinsilico-app dev",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "PInSilico v1.7.2",
+        "title": "PInSilico v1.7.3",
         "width": 1280,
         "height": 800,
         "minWidth": 960,
