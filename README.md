@@ -9,15 +9,15 @@
 ## 📥 Download
 
 <p align="center">
-  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.7.3_aarch64.dmg">
+  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.7.4_aarch64.dmg">
     <img alt="Download for macOS" src="https://img.shields.io/badge/Download_for-macOS-000000?style=for-the-badge&logo=apple&logoColor=white" height="48">
   </a>
   &nbsp;
-  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.7.3_x64_en-US.msi">
+  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.7.4_x64_en-US.msi">
     <img alt="Download for Windows" src="https://img.shields.io/badge/Download_for-Windows-000000?style=for-the-badge&logo=windows&logoColor=white" height="48">
   </a>
   &nbsp;
-  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.7.3_amd64.AppImage">
+  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.7.4_amd64.AppImage">
     <img alt="Download for Linux" src="https://img.shields.io/badge/Download_for-Linux-000000?style=for-the-badge&logo=linux&logoColor=white" height="48">
   </a>
 </p>
@@ -26,7 +26,7 @@
   <sub>macOS arm64 (.dmg) · Windows x64 (.msi) · Linux x86_64 (.AppImage) · Also available: <a href="https://github.com/ArioMoniri/pinsilico/releases/latest">.deb · .rpm · NSIS .exe</a></sub>
 </p>
 
-> **🍎 macOS:** v1.7.3+ ships with hardened-runtime entitlements (`com.apple.security.cs.disable-library-validation` and friends) so the bundled PyInstaller sidecar can load its embedded Python framework. If you upgraded from ≤ v1.4.0 and still see *Sidecar offline*, delete the old `/Applications/PInSilico.app`, drag the new one over fresh, and relaunch.
+> **🍎 macOS:** v1.7.4+ ships with hardened-runtime entitlements (`com.apple.security.cs.disable-library-validation` and friends) so the bundled PyInstaller sidecar can load its embedded Python framework. If you upgraded from ≤ v1.4.0 and still see *Sidecar offline*, delete the old `/Applications/PInSilico.app`, drag the new one over fresh, and relaunch.
 
 ---
 
@@ -82,6 +82,7 @@ make ci        # 🎯 the exact gates GitHub Actions runs
 | ✅ | Example-kit particle visibility | [v1.7.1](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.7.1) | Particles rendered at radius 1.6 Å (was 0.6) with emissive material · Workspace interpolates between SSE frames over 120 ms so WKWebView buffering can't hide the swarm motion |
 | ✅ | fpocket install guide + bundle-sharing docs | [v1.7.2](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.7.2) | New [`docs/fpocket.md`](docs/fpocket.md) covers per-platform manual install paths + the `.pinsilico` bundle-sharing alternative · in-app pocket-detection error now links to the guide |
 | ✅ | Mol\* headless + sim ResultsCard | [v1.7.3](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.7.3) | Switch Mol\* to headless `PluginContext.mount` so WKWebView no longer throws DOMException on first render · new ResultsCard floats over the viewport with Fast-forward histogram bars + Run bound/free progress so sim output is no longer hidden in the status bar |
+| ✅ | Demo pocket actually binds | [v1.7.4](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.7.4) | Example-kit demo pocket bumped to volume 1500 Å³ (radius ~7 Å) + druggability 0.95 (ΔG ≈ −9.7 kcal/mol); particle spawn box tightened to ±12 Å so 40-60 % of particles visibly bind by frame 1000 |
 
 ## 🏗️ Architecture
 

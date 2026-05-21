@@ -290,10 +290,12 @@ export function Workspace(): JSX.Element {
     // Seed the simulator with a random particle cloud centred near
     // the first site so the swarm renders inside the camera frustum
     // from frame 1 (Arena's default camera frames the protein at
-    // radius ≈ 12 Å). 200 particles in a ±18 Å box gives a visible
-    // cloud without overwhelming the InstancedMesh.
+    // radius ≈ 12 Å). 200 particles in a ±12 Å box gives a visible
+    // cloud where a meaningful fraction lands inside the binding
+    // catch basin (radius ≈ 7 Å for the example-kit pocket); ±18 was
+    // visually OK but only a handful of particles could ever bind.
     const rng = mulberry32(values.seed);
-    const halfBox = 18;
+    const halfBox = 12;
     const firstSite = sites[0]?.centroid_xyz ?? [0, 0, 0];
     const particles = Array.from({ length: 200 }, () => ({
       position: [

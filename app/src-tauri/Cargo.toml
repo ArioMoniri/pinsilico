@@ -1,6 +1,6 @@
 [package]
 name = "pinsilico-app"
-version = "1.7.3"
+version = "1.7.4"
 description = "PInSilico Tauri 2.x desktop shell."
 authors = ["Ariorad Moniri <moniriario@gmail.com>"]
 license = "MIT"
