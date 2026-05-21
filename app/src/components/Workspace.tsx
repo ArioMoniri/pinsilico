@@ -245,7 +245,7 @@ export function Workspace(): JSX.Element {
       .catch((e: unknown) => {
         if (e instanceof ApiError && e.message.includes("fpocket binary not found")) {
           setStatusMessage(
-            "fpocket isn't bundled in this release. Install it manually (apt/brew + build from source) and set FPOCKET_BIN, or use the Example kit which ships a pre-detected pocket.",
+            "fpocket isn't bundled. Two options: (1) load a .pinsilico bundle with pre-detected pockets (Open in toolbar), or (2) install fpocket and set FPOCKET_BIN — see docs/fpocket.md.",
           );
         } else {
           setStatusMessage(

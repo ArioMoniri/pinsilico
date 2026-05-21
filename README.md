@@ -9,15 +9,15 @@
 ## 📥 Download
 
 <p align="center">
-  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.7.1_aarch64.dmg">
+  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.7.2_aarch64.dmg">
     <img alt="Download for macOS" src="https://img.shields.io/badge/Download_for-macOS-000000?style=for-the-badge&logo=apple&logoColor=white" height="48">
   </a>
   &nbsp;
-  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.7.1_x64_en-US.msi">
+  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.7.2_x64_en-US.msi">
     <img alt="Download for Windows" src="https://img.shields.io/badge/Download_for-Windows-000000?style=for-the-badge&logo=windows&logoColor=white" height="48">
   </a>
   &nbsp;
-  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.7.1_amd64.AppImage">
+  <a href="https://github.com/ArioMoniri/pinsilico/releases/latest/download/PInSilico_1.7.2_amd64.AppImage">
     <img alt="Download for Linux" src="https://img.shields.io/badge/Download_for-Linux-000000?style=for-the-badge&logo=linux&logoColor=white" height="48">
   </a>
 </p>
@@ -26,7 +26,7 @@
   <sub>macOS arm64 (.dmg) · Windows x64 (.msi) · Linux x86_64 (.AppImage) · Also available: <a href="https://github.com/ArioMoniri/pinsilico/releases/latest">.deb · .rpm · NSIS .exe</a></sub>
 </p>
 
-> **🍎 macOS:** v1.7.1+ ships with hardened-runtime entitlements (`com.apple.security.cs.disable-library-validation` and friends) so the bundled PyInstaller sidecar can load its embedded Python framework. If you upgraded from ≤ v1.4.0 and still see *Sidecar offline*, delete the old `/Applications/PInSilico.app`, drag the new one over fresh, and relaunch.
+> **🍎 macOS:** v1.7.2+ ships with hardened-runtime entitlements (`com.apple.security.cs.disable-library-validation` and friends) so the bundled PyInstaller sidecar can load its embedded Python framework. If you upgraded from ≤ v1.4.0 and still see *Sidecar offline*, delete the old `/Applications/PInSilico.app`, drag the new one over fresh, and relaunch.
 
 ---
 
@@ -79,7 +79,8 @@ make ci        # 🎯 the exact gates GitHub Actions runs
 | ✅ | macOS hardened-runtime fix | [v1.5.0](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.5.0) | `disable-library-validation` entitlement so PyInstaller's bundled `Python.framework` can load under hardened runtime + notarisation |
 | ✅ | Pocket/Mol*/example polish | [v1.6.0](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.6.0) | fpocket binary resolver (bundle → PATH) · Mol\* CSS import + ErrorBoundary so atomistic-view crashes don't whitewash the workspace · example kit ships a pre-detected pocket so Run/Dock work without fpocket |
 | ✅ | Mol\* mount race + visible particle cloud | [v1.7.0](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.7.0) | Mol\* defers mount one rAF + checks `isConnected` to dodge React-strict double-mount DOMException · sim particles spawn near the pocket centroid + Arena seeds the initial cloud before SSE starts |
-| ✅ | Linux fpocket bundled | [v1.7.1](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.7.1) | Linux `.deb`/`.AppImage`/`.rpm` ship apt-installed fpocket — "Detect pockets" works out of the box. macOS source-build needs an arm64 `libmolfile_plugin.a` that isn't in fpocket's tree; macOS users install manually + set `FPOCKET_BIN`, or use the Example kit's pre-detected pocket. |
+| ✅ | Example-kit particle visibility | [v1.7.1](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.7.1) | Particles rendered at radius 1.6 Å (was 0.6) with emissive material · Workspace interpolates between SSE frames over 120 ms so WKWebView buffering can't hide the swarm motion |
+| ✅ | fpocket install guide + bundle-sharing docs | [v1.7.2](https://github.com/ArioMoniri/pinsilico/releases/tag/v1.7.2) | New [`docs/fpocket.md`](docs/fpocket.md) covers per-platform manual install paths + the `.pinsilico` bundle-sharing alternative · in-app pocket-detection error now links to the guide |
 
 ## 🏗️ Architecture
 
@@ -99,7 +100,7 @@ make ci        # 🎯 the exact gates GitHub Actions runs
 └──────────────────────────────────────────────┘
 ```
 
-📚 Full details: [`docs/architecture.md`](docs/architecture.md) · [`docs/physics-model.md`](docs/physics-model.md) · [`docs/api.md`](docs/api.md) · [`BUILD_PROMPT.md`](BUILD_PROMPT.md)
+📚 Full details: [`docs/architecture.md`](docs/architecture.md) · [`docs/physics-model.md`](docs/physics-model.md) · [`docs/api.md`](docs/api.md) · [`docs/fpocket.md`](docs/fpocket.md) (pocket detection install + bundle-sharing guide) · [`BUILD_PROMPT.md`](BUILD_PROMPT.md)
 
 ## 🧮 By the numbers
 
