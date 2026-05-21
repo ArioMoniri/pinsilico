@@ -1,127 +1,72 @@
 #!/usr/bin/env bash
 # Provision an fpocket binary into sidecar/resources/binaries/.
 #
-# fpocket has no prebuilt binary release. The fpocket v4.1.3 Makefile
-# ships a bundled qhull tree but its include paths regressed (the
-# qvoronoi compilation step looks for `libqhull/libqhull.h` in places
-# that don't exist), so a plain `make` fails on stock Linux + macOS
-# CI runners. We sidestep that two ways:
+# fpocket has no usable prebuilt binary release. Status per platform:
 #
-#   * **macOS** — use Homebrew. The `fpocket` formula is maintained,
-#     installs in seconds, and produces a working `/opt/homebrew/bin/fpocket`
-#     we copy directly.
-#   * **Linux** — install system libqhull-dev + libnetcdf-dev, then
-#     compile fpocket from source but skip its bundled qhull subdir by
-#     pointing the Makefile's qhull include + link flags at the system
-#     package. ~30 s.
+#   * **Linux**  — install via apt (Ubuntu 20.04+ ships an `fpocket`
+#     package in `universe`). One line; reliable.
 #
-# Both paths end with `sidecar/resources/binaries/fpocket` populated,
-# which is the path PyInstaller's `--add-data resources:resources` and
-# the route-layer resolver look up at runtime.
+#   * **macOS**  — source build needs three things: (1) qhull + netcdf
+#     (brew install qhull netcdf), (2) a sed patch to the Makefile so
+#     QCFLAGS includes `-I$(PATH_QHULL)` (the bundled qhull's
+#     qvoronoi.c uses a quoted include that needs that path to
+#     resolve), and (3) a prebuilt `libmolfile_plugin.a` for arm64
+#     (fpocket ships the .a only for x86_64 + Intel macOS). The third
+#     requirement isn't in this script yet — macOS users install
+#     fpocket manually from a checkout. See README "macOS fpocket"
+#     section.
+#
+#   * **Windows** — fpocket's Makefile is POSIX-only.
 
 set -euo pipefail
 
-FPOCKET_VERSION="${FPOCKET_VERSION:-4.1.3}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEST_DIR="$ROOT/sidecar/resources/binaries"
 mkdir -p "$DEST_DIR"
 
-install_deps_macos() {
-    echo "==> ensuring qhull + netcdf via Homebrew"
-    # Both formulae exist in homebrew-core; `brew install` is a no-op
-    # if already present. We need qhull's libqhull_r (the reentrant
-    # API) to link fpocket on macOS arm64.
-    brew install qhull netcdf
-}
-
-install_deps_linux() {
-    echo "==> ensuring qhull + netcdf headers via apt"
-    if ! dpkg -s libqhull-dev >/dev/null 2>&1; then
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq libqhull-dev libnetcdf-dev
-    fi
-}
-
-build_fpocket_from_source() {
-    local include_flag="$1"   # -I path
-    local link_flag="$2"      # -L path
-
-    WORK_DIR="$(mktemp -d -t pinsilico-fpocket-build-XXXXXX)"
-    # shellcheck disable=SC2064
-    trap "rm -rf '$WORK_DIR'" EXIT
-
-    echo "==> downloading fpocket ${FPOCKET_VERSION} source"
-    local src_url="https://github.com/Discngine/fpocket/archive/refs/tags/${FPOCKET_VERSION}.tar.gz"
-    local src_sha="5908eb271eae48d34e2d70fd04339c4c670568b7efd0e61c1d479dd1bf4ebecc"
-    cd "$WORK_DIR"
-    curl -fsSL -o src.tar.gz "$src_url"
-    local got
-    got="$(shasum -a 256 src.tar.gz | awk '{print $1}')"
-    if [ "$got" != "$src_sha" ]; then
-        echo "ERROR: fpocket source SHA mismatch ($got vs $src_sha)" >&2
-        exit 1
-    fi
-    tar xf src.tar.gz
-    cd "fpocket-${FPOCKET_VERSION}"
-
-    # The Makefile baked in v4.1.3 still tries to compile the bundled
-    # qhull sources (qvoronoi.c / qconvex.c) which `#include
-    # <libqhull/libqhull.h>` — a path that doesn't resolve without
-    # an extra -I src/qhull/src. Append BOTH the bundled qhull's
-    # internal include and the system qhull include so the bundled
-    # files compile and link against the system shared lib. macOS
-    # clang doesn't accept `-pg` (gprof); strip it from the Makefile.
-    sed -i.bak \
-        -e "s|-Isrc/qhull/src|-Isrc/qhull/src ${include_flag}|g" \
-        -e "s|-Lsrc/qhull/lib|-Lsrc/qhull/lib ${link_flag}|g" \
-        -e 's|-pg||g' \
-        makefile
-
-    echo "==> building fpocket (system qhull link, bundled qhull compile)"
-    make -j "$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu || echo 2)" \
-        LFLAGS="-lqhull_r -lm -lnetcdf -lpthread" 2>&1 | tail -60 || {
-        # Some qhull installations (older Ubuntu) only ship plain
-        # libqhull, no _r variant. Retry without the suffix.
-        make clean || true
-        make -j "$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu || echo 2)" \
-            LFLAGS="-lqhull -lm -lnetcdf -lpthread" 2>&1 | tail -60
-    }
-
-    if [ ! -f bin/fpocket ]; then
-        echo "ERROR: fpocket build produced no bin/fpocket" >&2
-        exit 1
-    fi
-
-    cp -f bin/fpocket "$DEST_DIR/fpocket"
-    chmod +x "$DEST_DIR/fpocket"
-    if [ -f bin/dpocket ]; then
-        cp -f bin/dpocket "$DEST_DIR/dpocket"
-        chmod +x "$DEST_DIR/dpocket"
-    fi
-}
-
 case "$(uname -s)" in
-    Darwin)
-        install_deps_macos
-        # Homebrew on Apple Silicon puts headers under /opt/homebrew;
-        # the qhull formula installs as `libqhull_r` (reentrant API).
-        QHULL_PREFIX="$(brew --prefix qhull)"
-        NETCDF_PREFIX="$(brew --prefix netcdf)"
-        build_fpocket_from_source \
-            "-I${QHULL_PREFIX}/include/libqhull_r -I${NETCDF_PREFIX}/include" \
-            "-L${QHULL_PREFIX}/lib -L${NETCDF_PREFIX}/lib"
-        ;;
     Linux)
-        install_deps_linux
-        build_fpocket_from_source \
-            "-I/usr/include/libqhull -I/usr/include" \
-            "-L/usr/lib/x86_64-linux-gnu"
+        echo "==> installing fpocket via apt"
+        if ! command -v fpocket >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq fpocket
+        fi
+        SYS_BIN="$(command -v fpocket)"
+        if [ -z "$SYS_BIN" ]; then
+            echo "ERROR: apt installed fpocket but it isn't on PATH" >&2
+            exit 1
+        fi
+        cp -f "$SYS_BIN" "$DEST_DIR/fpocket"
+        chmod +x "$DEST_DIR/fpocket"
+        if command -v dpocket >/dev/null 2>&1; then
+            cp -f "$(command -v dpocket)" "$DEST_DIR/dpocket"
+            chmod +x "$DEST_DIR/dpocket"
+        fi
         ;;
+
+    Darwin)
+        echo "==> macOS source build for fpocket isn't wired into CI yet."
+        echo "==> Manual install path:"
+        echo "      brew install qhull netcdf"
+        echo "      git clone https://github.com/Discngine/fpocket"
+        echo "      cd fpocket && sed -i.bak \\"
+        echo "        -e 's|^QCFLAGS *= \\(.*\\)|QCFLAGS = \\1 -I\$(PATH_QHULL)|' \\"
+        echo "        -e 's|^CFLAGS *= \\(.*\\)|CFLAGS = \\1 -I\$(PATH_QHULL)|' \\"
+        echo "        -e 's|-pg||g' \\"
+        echo "        -e 's|^ARCH.*= LINUXAMD64|ARCH = MACOSXX86_64|' makefile"
+        echo "      make bin/fpocket LFLAGS=\"-lqhull_r -lm -lnetcdf\""
+        echo "      # On Apple Silicon you'll need MACOSXARM64 plugins built"
+        echo "      # separately or use arch -x86_64 for x86_64 cross-compile."
+        echo "==> Skipping fpocket bundling. Set FPOCKET_BIN env to use it."
+        ;;
+
     *)
         echo "ERROR: unsupported platform for fpocket: $(uname -s)" >&2
         exit 1
         ;;
 esac
 
-echo "==> done. Installed: $DEST_DIR/fpocket"
-"$DEST_DIR/fpocket" --version || true
+if [ -f "$DEST_DIR/fpocket" ]; then
+    echo "==> done. Installed: $DEST_DIR/fpocket"
+    "$DEST_DIR/fpocket" --version 2>/dev/null || true
+fi
